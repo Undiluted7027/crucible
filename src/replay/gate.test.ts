@@ -31,6 +31,8 @@ test("saved evidence is stale after any input change, and current evidence passe
   assert.equal(verifyStatus(passed, []), "CURRENT_DECLARED_CHECKS_PASSED");
   assert.equal(verifyStatus(passed, ["src/a.ts"]), "EVIDENCE_STALE");
   assert.equal(verifyStatus({ ...passed, changedDuringRun: ["src/a.ts"] }, []), "EVIDENCE_STALE");
+  // A cancelled run is incomplete: its finished revisions may pass, but the run as a whole cannot.
+  assert.equal(verifyStatus({ ...passed, cancelled: true }, []), "CURRENT_REQUIRES_REVIEW");
   // Changed inputs outrank a failing verdict: the result needs another run before it means anything.
   assert.equal(verifyStatus(evidence([result("vulnerable", "VIOLATION_REPRODUCED")]), ["src/a.ts"]), "EVIDENCE_STALE");
   assert.equal(verifyStatus(evidence([result("vulnerable", "VIOLATION_REPRODUCED")]), []), "CURRENT_REQUIRES_REVIEW");

@@ -46,10 +46,12 @@ export type VerifyStatus = "EVIDENCE_STALE" | "CURRENT_DECLARED_CHECKS_PASSED" |
 /**
  * `crucible verify` status. `changed` lists watched inputs whose hashes differ from those saved in the evidence.
  * Stale evidence says the result needs another run, not that the change introduced a vulnerability.
+ * A cancelled run never counts as passed, even if the revisions it finished all passed.
  */
 export function verifyStatus(evidence: ReplayEvidence, changed: readonly string[]): VerifyStatus {
   if (changed.length > 0 || evidence.changedDuringRun.length > 0) return "EVIDENCE_STALE";
-  const allPassed = evidence.results.every((result) => result.cleanup && result.verdict === "DECLARED_CHECKS_PASSED");
+  const allPassed = !evidence.cancelled
+    && evidence.results.every((result) => result.cleanup && result.verdict === "DECLARED_CHECKS_PASSED");
   return allPassed ? "CURRENT_DECLARED_CHECKS_PASSED" : "CURRENT_REQUIRES_REVIEW";
 }
 

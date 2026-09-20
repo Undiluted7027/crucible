@@ -32,5 +32,5 @@ So the app code in `target/src/` is never what gets tested. Only what `target/` 
 
 ## Known rough edges
 
-- `replay/package.json` is a copy of `target/package.json`, including the package name `@crucible/invoice-target`. Its `build` and `start` scripts do nothing useful because `replay/` has no `tsconfig.json`; only the dependency list and lockfile are used.
+- `replay/package.json` is a copy of `target/package.json`, including the package name `@crucible/invoice-target`. Only its dependency list and lockfile are used, because `replay/` is never built or started on its own. Its name is left alone because it is also recorded in the lockfile.
 - The runner and `watchedPaths` name this capsule directly. Supporting a second capsule would mean moving those values into the capsule. That is deliberately not done until there is a second case.

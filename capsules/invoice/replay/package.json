@@ -13,9 +13,5 @@
   "version": "0.0.0",
   "description": "Curated invoice target for the Crucible lodash capsule",
   "type": "module",
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js"
-  },
   "private": true
 }
