@@ -1,0 +1,43 @@
+{
+  "name": "crucible",
+  "version": "0.0.0",
+  "description": "Reproducible security investigation workspace",
+  "scripts": {
+    "test": "npm run build --silent && node --test dist/**/*.test.js",
+    "clean": "node --run clean:build",
+    "clean:build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "tsc -p src/tsconfig.json",
+    "typecheck": "tsc -p src/tsconfig.json --noEmit",
+    "test:integration": "npm run build --silent && CRUCIBLE_DOCKSIDE_INTEGRATION=1 node --test dist/**/*.integration.test.js",
+    "dockside:verify": "npm run build --silent && node dist/compatibility/verify.js",
+    "cli": "node dist/cli.js",
+    "demo": "npm run build --silent && node dist/cli.js demo"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Undiluted7027/crucible.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Undiluted7027/crucible/issues"
+  },
+  "homepage": "https://github.com/Undiluted7027/crucible#readme",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "dependencies": {
+    "zod": "4.6.5",
+    "typescript": "6.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.6"
+  },
+  "packageManager": "npm@11.16.0",
+  "private": true,
+  "bin": {
+    "crucible": "dist/cli.js"
+  }
+}
