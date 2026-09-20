@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/brand/crucible-logo-v1.png" alt="Crucible logo: a crucible with a red spark above it" width="200">
+</p>
+
 # Crucible
 
 **An npm audit warning is a starting point. Crucible makes the next step an experiment.**
