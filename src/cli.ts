@@ -6,9 +6,11 @@ import { z } from "zod";
 import { catalog } from "./audit/catalog.js";
 import { scan } from "./audit/scan.js";
 import { runProcess } from "./dockside/process.js";
-import { replay, revisions } from "./replay/runner.js";
-import { changedInputs, fingerprint } from "./replay/evidence.js";
+import type { Verdict } from "./replay/checks.js";
+import { changedInputs, fingerprint, readEvidence } from "./replay/evidence.js";
 import { markdownReport } from "./replay/report.js";
+import { replay } from "./replay/runner.js";
+import { revisions, type Revision } from "./replay/schema.js";
 
 const root = resolve(import.meta.dirname, "..");
 const help = `
@@ -110,7 +112,9 @@ async function main(): Promise<void> {
     }
     if (report.cancelled || report.changedDuringRun.length || report.results.some((result) => !result.cleanup)) { process.exitCode = 2; return; }
     if (command === "demo") {
-      const expected = { vulnerable: "VIOLATION_REPRODUCED", broken: "FUNCTIONALITY_REGRESSION", fixed: "DECLARED_CHECKS_PASSED" };
+      const expected: Record<Revision, Verdict> = {
+        vulnerable: "VIOLATION_REPRODUCED", broken: "FUNCTIONALITY_REGRESSION", fixed: "DECLARED_CHECKS_PASSED",
+      };
       process.exitCode = report.results.length === 3 && report.results.every((result) => result.verdict === expected[result.revision]) ? 0 : 2;
       if (!values.json) console.log(process.exitCode === 0 ? "\nDemo matched all three expected outcomes. This is not an application security gate." : "\nDemo did not match expectations; inspect the evidence.");
     } else {
@@ -121,8 +125,7 @@ async function main(): Promise<void> {
   }
   if (command === "verify") {
     if (!argument) throw new Error("Provide a saved replay evidence file");
-    const evidence = z.object({ schemaVersion: z.literal(1), capsule: z.literal("invoice"), inputs: z.record(z.string(), z.string()).refine((items) => Object.keys(items).length > 0),
-      changedDuringRun: z.array(z.string()), results: z.array(z.object({ verdict: z.string(), cleanup: z.boolean() })).min(1) }).parse(JSON.parse(await readFile(argument, "utf8")));
+    const evidence = await readEvidence(argument);
     const changed = changedInputs(evidence.inputs, await fingerprint(root));
     const status = changed.length || evidence.changedDuringRun.length ? "EVIDENCE_STALE"
       : evidence.results.every((item) => item.cleanup && item.verdict === "DECLARED_CHECKS_PASSED") ? "CURRENT_DECLARED_CHECKS_PASSED" : "CURRENT_REQUIRES_REVIEW";
@@ -133,7 +136,7 @@ async function main(): Promise<void> {
   }
   if (command === "report") {
     if (!argument) throw new Error("Provide a saved replay evidence file");
-    console.log(markdownReport(JSON.parse(await readFile(argument, "utf8"))));
+    console.log(markdownReport(await readEvidence(argument)));
     return;
   }
   throw new Error(`Unknown command: ${clean(command)}. Run crucible --help.`);

@@ -5,15 +5,16 @@ import { dirname, resolve } from "node:path";
 import { z } from "zod";
 import { DocksideAdapter, DocksideOperationError } from "../dockside/adapter.js";
 import { runProcess } from "../dockside/process.js";
+import {
+  compatibilityTimeouts, docksideAdapterConfig, invoiceTarget, invoiceTargetRequest, managerContainer, sensitiveEnvironmentPattern,
+} from "../dockside/reviewed-setup.js";
 import { docksideReservationListSchema } from "../dockside/schema.js";
 
 const root = resolve(import.meta.dirname, "../..");
-const targetNetwork = "crucible-invoice-v1";
+const adapterConfig = docksideAdapterConfig(root, compatibilityTimeouts);
+const { network: targetNetwork, image: targetImage } = invoiceTarget;
 const unrelatedNetwork = "crucible-unrelated-probe-v1";
 const unrelatedContainer = "crucible-unrelated-probe";
-const docksideContainer = "crucible-dockside-v401";
-const targetImage = "crucible/invoice-vulnerable:slice1";
-const expectedTargetImageId = "sha256:cc62c7cee8a42e9abd23f77db795b15c3f726f5f7dbb2fcdeb42239c7c41e190";
 const expectedDocksideImageId = "sha256:876acbdf7152d51c732b41acaf9addabadfcbb6bde3d2d7e8c7b2361a8da3c12";
 
 const inspectSchema = z.array(
@@ -84,13 +85,13 @@ async function resourceInventory(): Promise<readonly string[]> {
 
 async function reservationExists(name: string): Promise<boolean> {
   const result = await runProcess({
-    command: resolve(root, ".crucible/upstream/dockside/cli/dockside"),
-    args: ["--server", "crucible-local", "list", "--output", "json"],
+    command: adapterConfig.executable,
+    args: ["--server", adapterConfig.server, "list", "--output", "json"],
     timeoutMs: 10_000,
     maxOutputBytes: 262_144,
     env: {
       ...process.env,
-      DOCKSIDE_CLI_CONFIG: resolve(root, ".crucible/dockside-runner-cli"),
+      DOCKSIDE_CLI_CONFIG: adapterConfig.cliConfigDirectory,
     },
   });
   if (result.exitCode !== 0 || result.timedOut) throw new Error(`Could not inspect Dockside reservations: ${result.stderr}`);
@@ -118,55 +119,33 @@ async function main(): Promise<void> {
   const hostSecretPath = resolve(root, ".crucible/dockside-data/containment/host-secret");
   let environmentId: string | undefined;
 
-  const adapter = new DocksideAdapter({
-    executable: resolve(root, ".crucible/upstream/dockside/cli/dockside"),
-    server: "crucible-local",
-    cliConfigDirectory: resolve(root, ".crucible/dockside-runner-cli"),
-    operationTimeoutMs: 120_000,
-    readinessTimeoutMs: 60_000,
-    readinessPollMs: 2_000,
-    maxOutputBytes: 262_144,
-  });
-  const shortDeadlineAdapter = new DocksideAdapter({
-    executable: resolve(root, ".crucible/upstream/dockside/cli/dockside"),
-    server: "crucible-local",
-    cliConfigDirectory: resolve(root, ".crucible/dockside-runner-cli"),
-    operationTimeoutMs: 500,
-    readinessTimeoutMs: 1_000,
-    readinessPollMs: 250,
-    maxOutputBytes: 262_144,
-  });
+  const adapter = new DocksideAdapter(adapterConfig);
+  const shortDeadlineAdapter = new DocksideAdapter(
+    docksideAdapterConfig(root, { operationTimeoutMs: 500, readinessTimeoutMs: 1_000, readinessPollMs: 250 }),
+  );
 
   try {
     await mkdir(dirname(hostSecretPath), { recursive: true });
     await writeFile(hostSecretPath, randomBytes(32), { mode: 0o600 });
 
-    const dockside = (await dockerJson(["inspect", docksideContainer], inspectSchema.parse))[0];
+    const dockside = (await dockerJson(["inspect", managerContainer], inspectSchema.parse))[0];
     assert.ok(dockside !== undefined);
     assert.equal(dockside.Image, expectedDocksideImageId);
     assert.equal(dockside.State.Running, true);
-    const serverVersion = (await command("docker", ["exec", docksideContainer, "cat", "/etc/service/nginx/data/version"])).trim();
-    const cliVersion = (await command(resolve(root, ".crucible/upstream/dockside/cli/dockside"), ["--version"])).trim();
+    const serverVersion = (await command("docker", ["exec", managerContainer, "cat", "/etc/service/nginx/data/version"])).trim();
+    const cliVersion = (await command(adapterConfig.executable, ["--version"])).trim();
     assert.equal(serverVersion, "v4.0.1 (c583421)");
     assert.equal(cliVersion, "dockside 0.2.0");
 
     const targetNetworkState = (await dockerJson(["network", "inspect", targetNetwork], networkSchema.parse))[0];
     assert.ok(targetNetworkState !== undefined);
     assert.equal(targetNetworkState.Internal, true);
-    const docksideEndpoint = Object.values(targetNetworkState.Containers).find(({ Name }) => Name === docksideContainer);
+    const docksideEndpoint = Object.values(targetNetworkState.Containers).find(({ Name }) => Name === managerContainer);
     assert.ok(docksideEndpoint !== undefined);
     const docksideIp = docksideEndpoint.IPv4Address.split("/")[0];
     assert.ok(docksideIp !== undefined && docksideIp !== "");
 
-    const running = await adapter.create({
-      name,
-      profile: "crucible-invoice-v1",
-      image: targetImage,
-      network: targetNetwork,
-      unixuser: "crucible",
-      ide: "openvscode/1.109.5",
-      access: { app: "owner", ide: "owner" },
-    });
+    const running = await adapter.create(invoiceTargetRequest(name));
     environmentId = running.id;
     assert.ok(running.containerId !== undefined);
     const ready = await adapter.waitUntilReady(running.id, "app");
@@ -182,13 +161,13 @@ async function main(): Promise<void> {
 
     const target = (await dockerJson(["inspect", containerId], inspectSchema.parse))[0];
     assert.ok(target !== undefined);
-    assert.equal(target.Image, expectedTargetImageId);
-    assert.equal(target.Config.User, "crucible");
+    assert.equal(target.Image, invoiceTarget.imageId);
+    assert.equal(target.Config.User, invoiceTarget.unixuser);
     assert.equal(target.HostConfig.NetworkMode, targetNetwork);
-    assert.equal(target.HostConfig.Memory, 1_073_741_824);
-    assert.equal(target.HostConfig.MemorySwap, 1_073_741_824);
-    assert.equal(target.HostConfig.NanoCpus, 1_000_000_000);
-    assert.equal(target.HostConfig.PidsLimit, 256);
+    assert.equal(target.HostConfig.Memory, invoiceTarget.limits.memoryBytes);
+    assert.equal(target.HostConfig.MemorySwap, invoiceTarget.limits.memoryBytes);
+    assert.equal(target.HostConfig.NanoCpus, invoiceTarget.limits.nanoCpus);
+    assert.equal(target.HostConfig.PidsLimit, invoiceTarget.limits.pidsLimit);
     assert.equal(target.HostConfig.Binds, null);
     assert.ok(target.HostConfig.SecurityOpt?.includes("no-new-privileges:true"));
     assert.deepEqual(
@@ -198,7 +177,7 @@ async function main(): Promise<void> {
     assert.equal(target.Mounts.some(({ Destination }) => Destination === "/var/run/docker.sock"), false);
     assert.equal(target.Mounts.some(({ Type }) => Type === "bind"), false);
     assert.equal(
-      (target.Config.Env ?? []).some((entry) => /(?:TOKEN|PASSWORD|SECRET|SSH_|DOCKER_HOST)/u.test(entry)),
+      (target.Config.Env ?? []).some((entry) => sensitiveEnvironmentPattern.test(entry)),
       false,
     );
 
@@ -246,15 +225,7 @@ async function main(): Promise<void> {
     await unlink(hostSecretPath);
 
     const notReadyName = `${name}-not-ready`;
-    const notReadyEnvironment = await adapter.create({
-      name: notReadyName,
-      profile: "crucible-invoice-v1",
-      image: targetImage,
-      network: targetNetwork,
-      unixuser: "crucible",
-      ide: "openvscode/1.109.5",
-      access: { app: "owner", ide: "owner" },
-    });
+    const notReadyEnvironment = await adapter.create(invoiceTargetRequest(notReadyName));
     environmentId = notReadyEnvironment.id;
     assert.ok(notReadyEnvironment.containerId !== undefined);
     await command("docker", ["network", "disconnect", targetNetwork, notReadyEnvironment.containerId]);
@@ -275,15 +246,7 @@ async function main(): Promise<void> {
     await command("docker", ["image", "tag", targetImage, backupImage]);
     await command("docker", ["image", "rm", targetImage]);
     try {
-      await adapter.create({
-        name: failedLaunchName,
-        profile: "crucible-invoice-v1",
-        image: targetImage,
-        network: targetNetwork,
-        unixuser: "crucible",
-        ide: "openvscode/1.109.5",
-        access: { app: "owner", ide: "owner" },
-      });
+      await adapter.create(invoiceTargetRequest(failedLaunchName));
       assert.fail("Dockside unexpectedly launched a missing target image");
     } catch (error) {
       assert.ok(error instanceof DocksideOperationError);
@@ -304,15 +267,7 @@ async function main(): Promise<void> {
     assert.equal(failedLaunchReservationCleaned, true);
 
     const timeoutName = `${name}-timeouts`;
-    const timeoutEnvironment = await adapter.create({
-      name: timeoutName,
-      profile: "crucible-invoice-v1",
-      image: targetImage,
-      network: targetNetwork,
-      unixuser: "crucible",
-      ide: "openvscode/1.109.5",
-      access: { app: "owner", ide: "owner" },
-    });
+    const timeoutEnvironment = await adapter.create(invoiceTargetRequest(timeoutName));
     environmentId = timeoutEnvironment.id;
     let stopTimeoutExplicit = false;
     try {
@@ -391,7 +346,7 @@ async function main(): Promise<void> {
         internalNetwork: targetNetworkState.Internal,
         noBindMounts: target.HostConfig.Binds === null,
         noDockerSocket: !target.Mounts.some(({ Destination }) => Destination === "/var/run/docker.sock"),
-        noSensitiveEnvironment: !(target.Config.Env ?? []).some((entry) => /(?:TOKEN|PASSWORD|SECRET|SSH_|DOCKER_HOST)/u.test(entry)),
+        noSensitiveEnvironment: !(target.Config.Env ?? []).some((entry) => sensitiveEnvironmentPattern.test(entry)),
         cannotReadHostSecret,
         cannotReachInternet,
         cannotReachManagement,

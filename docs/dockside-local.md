@@ -1,6 +1,6 @@
 # Local Dockside setup for slice 1
 
-Issue #7 is tested against Dockside `v4.0.1` at revision `c5834215605e4230f9c1f6b576fd8f49b5a71629`. The supported setup recorded so far is Docker Desktop on an Apple silicon Mac with `linux/arm64` containers.
+The invoice target is tested against Dockside `v4.0.1` at revision `c5834215605e4230f9c1f6b576fd8f49b5a71629`. The supported setup recorded so far is Docker Desktop on an Apple silicon Mac with `linux/arm64` containers.
 
 ## Pinned components
 
@@ -30,7 +30,7 @@ The Dockside management container needs the Docker socket because it is the trus
 
 ## Target network
 
-Run [configure-target-network.sh](/Users/sanai/Projects/crucible/scripts/dockside/configure-target-network.sh) after starting or restarting Dockside. The script creates an internal Docker network if needed, connects Dockside to it, and installs two stateful firewall rules inside the trusted Dockside container.
+Run [configure-target-network.sh](../scripts/dockside/configure-target-network.sh) after starting or restarting Dockside. The script creates an internal Docker network if needed, connects Dockside to it, and installs two stateful firewall rules inside the trusted Dockside container.
 
 The rules allow replies to connections initiated by Dockside and reject new target-initiated connections to Dockside. Docker's internal network setting blocks ordinary outbound traffic. Unrelated targets use a different internal network.
 
@@ -38,7 +38,7 @@ Do not proceed if the script cannot install or verify these rules. A shared brid
 
 ## Profile and account
 
-Load [crucible-invoice-v1.json](/Users/sanai/Projects/crucible/config/dockside/crucible-invoice-v1.json) as profile ID `crucible-invoice-v1`. The profile fixes the image, runtime, network, Unix user, IDE version, resource limits, capabilities, and owner/developer route modes.
+Load [crucible-invoice-v1.json](../config/dockside/crucible-invoice-v1.json) as profile ID `crucible-invoice-v1`. The profile fixes the image, runtime, network, Unix user, IDE version, resource limits, capabilities, and owner/developer route modes.
 
 The runtime account must be limited to:
 
@@ -62,7 +62,7 @@ docker build --provenance=false --platform linux/arm64 \
   capsules/invoice/target
 ```
 
-The current verified image ID is recorded in [compatibility.json](/Users/sanai/Projects/crucible/config/dockside/compatibility.json). A different ID requires a new compatibility run and evidence record.
+The current verified image ID is recorded in [compatibility.json](../config/dockside/compatibility.json). The same values are pinned in `src/dockside/reviewed-setup.ts`; a test fails if the two drift. A different ID requires a new compatibility run and evidence record.
 
 The build disables generated provenance attestations so repeated local builds produce the same runnable image manifest when the Dockerfile and inputs are unchanged. The base image remains pinned by its multi-platform digest inside the Dockerfile.
 
@@ -73,6 +73,6 @@ npm run test:integration
 npm run dockside:verify
 ```
 
-The verifier writes [slice-1-compatibility.json](/Users/sanai/Projects/crucible/evidence/dockside/slice-1-compatibility.json). It checks the lifecycle, application readiness, routes, resource configuration, mounts, environment, selected network boundaries, and before/after resource inventory.
+The verifier writes [slice-1-compatibility.json](../evidence/dockside/slice-1-compatibility.json). It checks the lifecycle, application readiness, routes, resource configuration, mounts, environment, selected network boundaries, and before/after resource inventory.
 
 This is evidence for the curated invoice target on the recorded host. It does not establish that Docker containers safely contain arbitrary hostile workloads.

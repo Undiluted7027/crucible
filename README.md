@@ -80,7 +80,7 @@ Edit a watched file and repeat `verify`: it reports **EVIDENCE_STALE**. That mea
 - Separate security and functional observations, bounded operations, cleanup, and explicit failures.
 - JSON evidence, Markdown reports, and conservative file-based staleness detection.
 
-The earlier [workspace proposal](docs/poc.md) and [slice plan](docs/poc-slices.md) describe the broader product. They are not a list of completed features. This deadline-sized submission does **not** include the web workspace, an autonomous repair agent, arbitrary-repository reproduction, automatic fix PRs, general taint analysis, or a portable one-command Dockside installer. The earlier semver experiment has not been integrated into this CLI.
+This deadline-sized submission is a narrow slice of the broader workspace product and does **not** include the web workspace, an autonomous repair agent, arbitrary-repository reproduction, automatic fix PRs, general taint analysis, or a portable one-command Dockside installer. The earlier semver experiment has not been integrated into this CLI.
 
 ## Development
 
@@ -90,12 +90,15 @@ npm run typecheck
 npm run test:integration  # Requires the prepared Dockside installation
 ```
 
-The main modules are intentionally small:
+Where things live:
 
-- `src/audit/scan.ts`: audit validation and candidate extraction.
-- `src/replay/runner.ts`: environment orchestration and HTTP transport.
-- `src/replay/checks.ts`: reviewed requests and outcome rules.
-- `src/replay/evidence.ts`: watched-input identity and invalidation.
 - `src/cli.ts`: command parsing, terminal output, and exit codes.
+- `src/audit/`: `scan.ts` validates npm audit reports and extracts call-site candidates; `catalog.ts` lists the reviewed advisories.
+- `src/replay/`: `runner.ts` orchestrates targets and HTTP transport; `checks.ts` holds the reviewed requests and outcome rules; `schema.ts` defines the saved evidence format; `evidence.ts` reads evidence and tracks watched inputs; `report.ts` renders Markdown.
+- `src/dockside/`: typed adapter over the Dockside CLI (`adapter.ts`), its response schemas (`schema.ts`), bounded subprocess execution (`process.ts`), and the pinned image, profile, limits and timeouts every caller shares (`reviewed-setup.ts`).
+- `src/contracts/environment.ts`: environment types that the rest of Crucible depends on, independent of Dockside.
+- `src/compatibility/verify.ts`: `npm run dockside:verify`, which checks a Dockside installation and writes `evidence/dockside/`.
+- `capsules/invoice/`: the curated case. `target/` is the image source; `replay/` holds the revisions the runner injects into it.
+- `config/dockside/`, `scripts/dockside/`: reviewed Dockside profile, pinned versions, and network setup.
 
 See the [three-minute presentation](docs/demo/SUBMISSION.md) for the rehearsed journey and honest scope.

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { resolve, relative } from "node:path";
+import { replayEvidenceSchema, type ReplayEvidence } from "./schema.js";
 
 export const watchedPaths = ["src", "capsules/invoice/replay", "config/dockside", "package.json", "package-lock.json"];
 
@@ -19,6 +20,11 @@ export async function fingerprint(root: string): Promise<Record<string, string>>
   }
   for (const path of watchedPaths) await walk(resolve(root, path));
   return hashes;
+}
+
+/** Loads saved replay evidence, rejecting files that do not match the current format. */
+export async function readEvidence(path: string): Promise<ReplayEvidence> {
+  return replayEvidenceSchema.parse(JSON.parse(await readFile(path, "utf8")));
 }
 
 export function changedInputs(before: Record<string, string>, after: Record<string, string>): string[] {

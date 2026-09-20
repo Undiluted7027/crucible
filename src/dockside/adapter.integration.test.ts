@@ -3,38 +3,23 @@ import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { resolve } from "node:path";
 import { DocksideAdapter } from "./adapter.js";
+import { compatibilityTimeouts, docksideAdapterConfig, invoiceTarget, invoiceTargetRequest } from "./reviewed-setup.js";
 
 const enabled = process.env.CRUCIBLE_DOCKSIDE_INTEGRATION === "1";
+const root = resolve(import.meta.dirname, "../..");
 
 test("pinned Dockside runs the invoice lifecycle and reports application readiness", { skip: !enabled }, async () => {
-  const root = resolve(import.meta.dirname, "../..");
-  const adapter = new DocksideAdapter({
-    executable: resolve(root, ".crucible/upstream/dockside/cli/dockside"),
-    server: "crucible-local",
-    cliConfigDirectory: resolve(root, ".crucible/dockside-runner-cli"),
-    operationTimeoutMs: 120_000,
-    readinessTimeoutMs: 60_000,
-    readinessPollMs: 2_000,
-    maxOutputBytes: 262_144,
-  });
+  const adapter = new DocksideAdapter(docksideAdapterConfig(root, compatibilityTimeouts));
   const name = `crucible-invoice-${process.pid}`;
   let createdId: string | undefined;
 
   try {
-    const running = await adapter.create({
-      name,
-      profile: "crucible-invoice-v1",
-      image: "crucible/invoice-vulnerable:slice1",
-      network: "crucible-invoice-v1",
-      unixuser: "crucible",
-      ide: "openvscode/1.109.5",
-      access: { app: "owner", ide: "owner" },
-    });
+    const running = await adapter.create(invoiceTargetRequest(name));
     createdId = running.id;
     assert.equal(running.state, "running");
     assert.equal(running.readiness.status, "not-checked");
-    assert.equal(running.profile, "crucible-invoice-v1");
-    assert.equal(running.network, "crucible-invoice-v1");
+    assert.equal(running.profile, invoiceTarget.profile);
+    assert.equal(running.network, invoiceTarget.network);
 
     const ready = await adapter.waitUntilReady(running.id, "app");
     assert.equal(ready.state, "ready");
@@ -56,44 +41,21 @@ test("pinned Dockside runs the invoice lifecycle and reports application readine
 });
 
 test("a running target with a broken service path fails readiness", { skip: !enabled }, async () => {
-  const root = resolve(import.meta.dirname, "../..");
-  const normal = new DocksideAdapter({
-    executable: resolve(root, ".crucible/upstream/dockside/cli/dockside"),
-    server: "crucible-local",
-    cliConfigDirectory: resolve(root, ".crucible/dockside-runner-cli"),
-    operationTimeoutMs: 120_000,
-    readinessTimeoutMs: 60_000,
-    readinessPollMs: 2_000,
-    maxOutputBytes: 262_144,
-  });
-  const shortReadiness = new DocksideAdapter({
-    executable: resolve(root, ".crucible/upstream/dockside/cli/dockside"),
-    server: "crucible-local",
-    cliConfigDirectory: resolve(root, ".crucible/dockside-runner-cli"),
-    operationTimeoutMs: 5_000,
-    readinessTimeoutMs: 1_000,
-    readinessPollMs: 250,
-    maxOutputBytes: 262_144,
-  });
+  const normal = new DocksideAdapter(docksideAdapterConfig(root, compatibilityTimeouts));
+  const shortReadiness = new DocksideAdapter(
+    docksideAdapterConfig(root, { operationTimeoutMs: 5_000, readinessTimeoutMs: 1_000, readinessPollMs: 250 }),
+  );
   const name = `crucible-not-ready-${process.pid}`;
   let createdId: string | undefined;
   let containerId: string | undefined;
 
   try {
-    const running = await normal.create({
-      name,
-      profile: "crucible-invoice-v1",
-      image: "crucible/invoice-vulnerable:slice1",
-      network: "crucible-invoice-v1",
-      unixuser: "crucible",
-      ide: "openvscode/1.109.5",
-      access: { app: "owner", ide: "owner" },
-    });
+    const running = await normal.create(invoiceTargetRequest(name));
     createdId = running.id;
     containerId = running.containerId;
     assert.ok(containerId !== undefined);
 
-    execFileSync("docker", ["network", "disconnect", "crucible-invoice-v1", containerId]);
+    execFileSync("docker", ["network", "disconnect", invoiceTarget.network, containerId]);
 
     const failed = await shortReadiness.waitUntilReady(running.id, "app");
     assert.equal(failed.state, "failed");
@@ -103,7 +65,7 @@ test("a running target with a broken service path fails readiness", { skip: !ena
   } finally {
     if (containerId !== undefined) {
       try {
-        execFileSync("docker", ["network", "connect", "crucible-invoice-v1", containerId]);
+        execFileSync("docker", ["network", "connect", invoiceTarget.network, containerId]);
       } catch {
         // It may already be connected or removed. Cleanup below verifies the reservation.
       }
