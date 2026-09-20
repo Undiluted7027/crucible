@@ -1,7 +1,7 @@
 # Crucible replay evidence
 
-Run: 336abb2e-1410-4f06-a972-aaef48b21cba  
-Recorded: 2026-09-20T12:15:45.944Z
+Run: ad49f5fe-a560-46f4-ba20-2beb8215ba7d  
+Recorded: 2026-09-20T13:17:47.044Z
 
 Advisory: GHSA-r5fr-rjxr-66jc
 

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "runId": "2f050f19-02bb-4fa2-96fe-a37d3e440104",
-  "startedAt": "2026-09-20T12:15:59.400Z",
-  "recordedAt": "2026-09-20T12:16:51.102Z",
-  "durationMs": 51701,
+  "runId": "200f486b-c9a6-4c4e-9a89-2338c1b960e3",
+  "startedAt": "2026-09-20T13:16:33.376Z",
+  "recordedAt": "2026-09-20T13:17:28.357Z",
+  "durationMs": 54980,
   "cancelled": false,
   "capsule": "invoice",
   "advisory": "GHSA-r5fr-rjxr-66jc",
@@ -70,26 +70,42 @@
     "network": "crucible-invoice-v1"
   },
   "inputs": {
-    "src/audit/catalog.ts": "4447284b791272ec17c205ec265aa88159523a15d9d8fed9eda84165aa531f8b",
-    "src/audit/scan.test.ts": "09adb4464f9bf29a95a37fb368535f61c57fa9e5be46da06f84979d3d630113a",
-    "src/audit/scan.ts": "fd8a07dd23fba7eecf1c2602fe52cc47c1799b910a035e1593af199cbe9699e7",
-    "src/cli.ts": "47124c9abc07f25bc35f2ebee326adf532a79523449f1c0467ebfc67041b0df0",
-    "src/compatibility/verify.ts": "2a2897889f2cbba436ccdd00632ced19d222fd0037456cd45ec276afddf68069",
-    "src/contracts/environment.ts": "07de1a50852fe484ac16069848d364772a8840e54cbfc1667857f97657d9975a",
-    "src/dockside/adapter.integration.test.ts": "90a1e20fc4908e9a3942135c889307795fffdbcf70d6de7dc6b592c35d8a054f",
-    "src/dockside/adapter.test.ts": "9e27eb6c871fbd0da5f07a1e8598f2b3da94aa1e2375ec84c31a3ccdd0ab819f",
-    "src/dockside/adapter.ts": "4efb886f78fa176edb7b1d873c723c056b8ea942a14fae21d8887c1f11d754a0",
-    "src/dockside/process.test.ts": "324a3a71de89be2c7929dd319ed19b57ae2cff90a8cc1926d488b631cc244a97",
-    "src/dockside/process.ts": "ea70cc53f263dc60cdb5df371cd1a379729e923bb713987e15d8954dda88a545",
-    "src/dockside/schema.ts": "b5b4304b87d0ecbf657a3c3c7f7b3668ece4f08fac6a3e6c3b57bef04f561899",
-    "src/replay/checks.test.ts": "d0acba6ea37e1dedf7a41278e2f75498bc996f15cf89bcdf567fe7b8f8e854ca",
-    "src/replay/checks.ts": "f149d57294afe1c7e808865bfd9dc44160291105a4e89f645de1fd9c31db6982",
-    "src/replay/evidence.ts": "870abf068b5ed8bb224b2a3350a128b884141db857ccb483438f96c741d6b4a3",
-    "src/replay/report.ts": "df2b7569301ea22bc2d996311a9f432b688c52907ae18a230938dddbe0a0034b",
-    "src/replay/runner.ts": "2d5e00dd10879671e0d1dbf99dbd69303be500a96a468a673a0e330632f40fae",
+    "src/audit/catalog.ts": "4d01ddfbdb078b91c2c6e99ae652dc6fa19e0821a04487ec928e5c5ea061faab",
+    "src/audit/command.ts": "55f9f45318e810004e14a1cd800e9448aae4a29330d0aec87f10398eeb66d141",
+    "src/audit/scan.test.ts": "2499045a7a6526c7fa46d0cf2dc93f740e00c39cf86c402de7550d81716559c2",
+    "src/audit/scan.ts": "0c5ed125aac5102050427c5e161fece62da94b12fbcf7ea2f983570cb3ae077c",
+    "src/cli.ts": "45908627296550c65129ea85ae06e93b9769c13b3ae274d981033df91414d3c7",
+    "src/compatibility/verify.ts": "06dd918601ebb92f4f25fc038baa8b6a455d410c0478b9d611d672f14bbd608f",
+    "src/contracts/environment.ts": "c03572b476f156c3dc707195c4cf9fba3c78f7c48181cd5a0cd6d0a39788212d",
+    "src/dockside/adapter.integration.test.ts": "56d715a98d05f8da0acba898c5e7a02e5c15ace9f81ebd912ec0d80212e6bfa6",
+    "src/dockside/adapter.test.ts": "238aaf12a145af8925378df1286480e3b67f16e5cf974d29ee8587d0042387b0",
+    "src/dockside/adapter.ts": "3e820339743a3332716f309ce4bb98224c1ca67ac0e6b7c9e28a8fd4dca829af",
+    "src/dockside/container-scripts.test.ts": "f9b79dd27718f376ac31dba8fd0732c5530ff234d8e559ebbfe958ce5442b805",
+    "src/dockside/container-scripts.ts": "468390474275840209e3610712b3d5ba6af10e5d86e438cc63288acf1c112781",
+    "src/dockside/process.test.ts": "b5b13a06e92315a6a95ca37410e0e0e7ce14bc5ede63400d5fbca9a1eaffa1f4",
+    "src/dockside/process.ts": "6a91824325a0f1c6f016f2b771047ec02c7e770bd5d6b1f3ad6080a663f219a5",
+    "src/dockside/reviewed-setup.test.ts": "ebb6bc54b695db4b4cbc2a9056307934c7108fb685f1666ca2e938b3bfabeea9",
+    "src/dockside/reviewed-setup.ts": "94ea3e8f92a34aa74496928144a5303b81934d8a013e7bd58babe6010f00bc0d",
+    "src/dockside/schema.ts": "99ec4af44f65e9d6f878717106cb777666ee19caa79e9b723e055346b8b7f35a",
+    "src/errors.ts": "5567e69b0555277f44b40f748afab565bb366885a91d489f6ed60b805d00ac4d",
+    "src/output.ts": "77829ed45dcbd7566dd66fe9ebbd5bd02729179b7dbee0614b4ee7167cc1e8e8",
+    "src/replay/checks.test.ts": "44451fe2d7fd619c2416e78016f5cb888bce8626e94ed27e2abefeec91712fb5",
+    "src/replay/checks.ts": "2357b16cd613c1ee94d6bdc7edeeb423ac08d4c707d7899133f630d87e90ea20",
+    "src/replay/command.ts": "480dd0b68f7fd3a8580cdde454778abbaf46999daf1ce7cc3dce3ab965b412fe",
+    "src/replay/evidence.ts": "80f2b5c38dd01247fe118012fc6924debb3a6aa10bea779c03dd02ec28f165a6",
+    "src/replay/gate.test.ts": "932d72df3298374adcbf2dc4f9262398faf07034d62ac9d6a6a682f56ed78f5e",
+    "src/replay/gate.ts": "86bc66935cea123323090fda96a9273235ad16369e090b0aaa399ab75c5ad2cb",
+    "src/replay/report.test.ts": "ea2fcdb23952ecb58f3ae8d32d1a592a1e3507887a63541b827da23dade06482",
+    "src/replay/report.ts": "f18c5e7501723564cc7f69cfa56503f2f276cca888ba941e5df3a6c761157e8b",
+    "src/replay/runner.test.ts": "e4a8ee2367b6ecbb1ed1b1a1b1b5bbfcd7968afdf45e6e845ef3846a0c45d1e4",
+    "src/replay/runner.ts": "7c0f09a21868080356d0e3f36ae2f86aa9a2291e1df6485b703073660ba53784",
+    "src/replay/schema.ts": "92f39f9800ccd59874030036bd57dc8fa1ec2cd11fb79886ee0fe8c98fb16d9b",
+    "src/replay/target.test.ts": "6df62b9970358184b3acfebf2cdf758a395e1beee9d4386ffacb5e704e1cc200",
+    "src/replay/target.ts": "9c0c5d224d1f9f923d7d2f9d1f2c11751a2cd8341ce98c0a885fd9cc280593bb",
+    "src/replay/test-helpers.ts": "608e79b6c97ab568f0234d1b7ba1c6e761f5b7abe573f3459c249c17851e03da",
     "src/tsconfig.json": "9c0e1eee41ff0f4e6f61bad944de173db447c9cc8f59e239a42a4f8e5e0e0f42",
     "capsules/invoice/replay/package-lock.json": "f4cbc6dce3d72055074d376136e4db8fa4734f18c99d08cbcb449de3192ce6ff",
-    "capsules/invoice/replay/package.json": "5a201d1430d8f6b5ca50c0ff55185878d1cd53873e5f59be07286fbb44ddb210",
+    "capsules/invoice/replay/package.json": "234ac163fee7d6c023436d8cfcea119ff6518cb678153671350df290cbda310b",
     "capsules/invoice/replay/patches/broken.ts": "a46e3365df9794be023ef29fac3fb6c65d2e9995ce5d4f45b5f15e5d22d5aa52",
     "capsules/invoice/replay/patches/fixed.ts": "3ec26935c458db4ae675c57035c58cb407c8becd8e4dcdefb7ed3398ad26f5b9",
     "capsules/invoice/replay/src/render.ts": "a9be1079202ce08e8ded23da2605f11aa955367de6152556712ea401ad6d1efd",
@@ -111,7 +127,7 @@
           "outcome": "reproduced",
           "status": 500,
           "body": "CRUCIBLE_EXECUTION_PROOF",
-          "durationMs": 58
+          "durationMs": 64
         },
         {
           "name": "standard-invoice",
@@ -119,7 +135,7 @@
           "outcome": "passed",
           "status": 200,
           "body": "Total: $42",
-          "durationMs": 43
+          "durationMs": 41
         },
         {
           "name": "custom-currency",
@@ -127,7 +143,7 @@
           "outcome": "passed",
           "status": 200,
           "body": "Total: €42",
-          "durationMs": 42
+          "durationMs": 38
         },
         {
           "name": "server-owned-template",
@@ -135,7 +151,7 @@
           "outcome": "passed",
           "status": 400,
           "body": "Client templates are not supported",
-          "durationMs": 38
+          "durationMs": 33
         }
       ],
       "cleanup": true
@@ -150,7 +166,7 @@
           "outcome": "blocked",
           "status": 200,
           "body": "Total: $42",
-          "durationMs": 49
+          "durationMs": 62
         },
         {
           "name": "standard-invoice",
@@ -158,7 +174,7 @@
           "outcome": "passed",
           "status": 200,
           "body": "Total: $42",
-          "durationMs": 40
+          "durationMs": 60
         },
         {
           "name": "custom-currency",
@@ -166,7 +182,7 @@
           "outcome": "regression",
           "status": 200,
           "body": "Total: $42",
-          "durationMs": 44
+          "durationMs": 47
         },
         {
           "name": "server-owned-template",
@@ -189,7 +205,7 @@
           "outcome": "blocked",
           "status": 500,
           "body": "Unsupported imports option",
-          "durationMs": 56
+          "durationMs": 48
         },
         {
           "name": "standard-invoice",
@@ -197,7 +213,7 @@
           "outcome": "passed",
           "status": 200,
           "body": "Total: $42",
-          "durationMs": 38
+          "durationMs": 45
         },
         {
           "name": "custom-currency",
@@ -205,7 +221,7 @@
           "outcome": "passed",
           "status": 200,
           "body": "Total: €42",
-          "durationMs": 40
+          "durationMs": 45
         },
         {
           "name": "server-owned-template",
@@ -213,7 +229,7 @@
           "outcome": "passed",
           "status": 400,
           "body": "Client templates are not supported",
-          "durationMs": 37
+          "durationMs": 35
         }
       ],
       "cleanup": true
