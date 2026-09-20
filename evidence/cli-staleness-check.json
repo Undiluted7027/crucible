@@ -1,0 +1,31 @@
+[
+  {
+    "stage": "current",
+    "exitCode": 0,
+    "output": {
+      "status": "CURRENT_DECLARED_CHECKS_PASSED",
+      "changed": [],
+      "note": "Hashes detect changed files, not malicious evidence tampering or changes in a live environment."
+    }
+  },
+  {
+    "stage": "changed",
+    "exitCode": 1,
+    "output": {
+      "status": "EVIDENCE_STALE",
+      "changed": [
+        "capsules/invoice/replay/patches/fixed.ts"
+      ],
+      "note": "Hashes detect changed files, not malicious evidence tampering or changes in a live environment."
+    }
+  },
+  {
+    "stage": "restored",
+    "exitCode": 0,
+    "output": {
+      "status": "CURRENT_DECLARED_CHECKS_PASSED",
+      "changed": [],
+      "note": "Hashes detect changed files, not malicious evidence tampering or changes in a live environment."
+    }
+  }
+]

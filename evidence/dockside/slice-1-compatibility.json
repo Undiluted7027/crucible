@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-19T17:59:15.681Z",
+  "host": {
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "dockside": {
+    "tag": "v4.0.1",
+    "revision": "c5834215605e4230f9c1f6b576fd8f49b5a71629",
+    "reportedVersion": "v4.0.1 (c583421)",
+    "cliVersion": "dockside 0.2.0",
+    "imageId": "sha256:876acbdf7152d51c732b41acaf9addabadfcbb6bde3d2d7e8c7b2361a8da3c12",
+    "containerId": "e149138796cfec078ec3eddf215069efb9f3f446ea0c2e876dae8573fc33929f"
+  },
+  "target": {
+    "capsule": "invoice-lodash-template-imports",
+    "reservationId": "3e5d6752effc014a",
+    "containerId": "4bc4953ca515",
+    "image": "crucible/invoice-vulnerable:slice1",
+    "imageId": "sha256:dfa997f5c51c12698feff67d55bc00a0d7a0dd2a48b86317273e10e1dd01299f",
+    "profile": "crucible-invoice-v1",
+    "network": "crucible-invoice-v1",
+    "routes": [
+      {
+        "kind": "service",
+        "name": "app",
+        "url": "https://app-crucible-verify-1789840737690.local.dockside.dev/",
+        "access": "owner"
+      },
+      {
+        "kind": "ide",
+        "name": "ide",
+        "url": "https://ide-crucible-verify-1789840737690.local.dockside.dev/?folder=%2Fhome%2Fcrucible",
+        "access": "owner"
+      }
+    ],
+    "anonymousRouteStatus": {
+      "application": 400,
+      "ide": 400
+    }
+  },
+  "lifecycle": {
+    "createdState": "running",
+    "readiness": {
+      "status": "ready",
+      "observedAt": "2026-09-19T17:59:00.497Z",
+      "statusCode": 200
+    },
+    "stoppedState": "stopped",
+    "restartedState": "running",
+    "removed": true,
+    "logBytesRetained": 33,
+    "logsTruncated": false
+  },
+  "containment": {
+    "internalNetwork": true,
+    "noBindMounts": true,
+    "noDockerSocket": true,
+    "noSensitiveEnvironment": true,
+    "cannotReadHostSecret": true,
+    "cannotReachInternet": true,
+    "cannotReachManagement": true,
+    "cannotReachUnrelatedTarget": true
+  },
+  "cleanup": {
+    "before": [],
+    "after": []
+  },
+  "limitations": [
+    "This evidence covers the selected invoice target and named probes on Docker Desktop for linux/arm64.",
+    "It is not a claim that containers safely contain arbitrary hostile workloads."
+  ]
+}
