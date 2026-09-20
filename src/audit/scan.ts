@@ -108,6 +108,8 @@ export function parseAudit(input: unknown, calls: readonly CallSite[]) {
   }));
 }
 
+export type ScanReport = Awaited<ReturnType<typeof scan>>;
+
 export async function scan(root: string, input: unknown) {
   const files = await sourceFiles(root);
   const calls: CallSite[] = [];

@@ -92,9 +92,9 @@ npm run test:integration  # Requires the prepared Dockside installation
 
 Where things live:
 
-- `src/cli.ts`: command parsing, terminal output, and exit codes.
-- `src/audit/`: `scan.ts` validates npm audit reports and extracts call-site candidates; `catalog.ts` lists the reviewed advisories.
-- `src/replay/`: `runner.ts` orchestrates targets and HTTP transport; `checks.ts` holds the reviewed requests and outcome rules; `schema.ts` defines the saved evidence format; `evidence.ts` reads evidence and tracks watched inputs; `report.ts` renders Markdown.
+- `src/cli.ts`: argument parsing, validation, and dispatch to the commands below. `src/output.ts` holds terminal sanitizing and never-overwrite file writes.
+- `src/audit/`: `command.ts` implements `scan` and `explain`; `scan.ts` validates npm audit reports and extracts call-site candidates; `catalog.ts` lists the reviewed advisories.
+- `src/replay/`: `command.ts` implements `demo`, `replay`, `verify` and `report`; `gate.ts` decides their exit codes and verification status; `runner.ts` orchestrates targets and HTTP transport; `checks.ts` holds the reviewed requests and outcome rules; `schema.ts` defines the saved evidence format; `evidence.ts` reads evidence and tracks watched inputs; `report.ts` renders Markdown.
 - `src/dockside/`: typed adapter over the Dockside CLI (`adapter.ts`), its response schemas (`schema.ts`), bounded subprocess execution (`process.ts`), and the pinned image, profile, limits and timeouts every caller shares (`reviewed-setup.ts`).
 - `src/contracts/environment.ts`: environment types that the rest of Crucible depends on, independent of Dockside.
 - `src/compatibility/verify.ts`: `npm run dockside:verify`, which checks a Dockside installation and writes `evidence/dockside/`.
