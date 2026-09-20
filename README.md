@@ -99,7 +99,7 @@ Where things live:
 - `src/errors.ts`: `errorMessage` for anything thrown.
 - `src/contracts/environment.ts`: environment types that the rest of Crucible depends on, independent of Dockside.
 - `src/compatibility/verify.ts`: `npm run dockside:verify`, which checks a Dockside installation and writes `evidence/dockside/`.
-- `capsules/invoice/`: the curated case. `target/` is the image source; `replay/` holds the revisions the runner injects into it.
+- `capsules/invoice/`: the curated case. `target/` is the image source; `replay/` holds the revisions the runner injects into it. See its [README](capsules/invoice/README.md) before changing either.
 - `config/dockside/`, `scripts/dockside/`: reviewed Dockside profile, pinned versions, and network setup.
 
 See the [three-minute presentation](docs/demo/SUBMISSION.md) for the rehearsed journey and honest scope.
