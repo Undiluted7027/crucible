@@ -44,15 +44,6 @@ I would rather see six tests that specifically cover the difficult cases and bus
 - We don't shy away from Python but we try to avoid it because it's typing system is not that great.
 
 
-## POC implementation guidance
+## Environment backend (Dockside)
 
-The project description and coding preferences above are canonical. Do not reinterpret, replace, or weaken them based on this section or on the POC specification. When guidance conflicts, follow the instructions above and ask Sanchit only when the conflict cannot be resolved safely.
-
-Read both documents before planning or implementing POC work:
-
-- [`docs/poc.md`](docs/poc.md) defines the product scope, architecture, boundaries, and acceptance requirements.
-- [`docs/poc-slices.md`](docs/poc-slices.md) organizes the first end-to-end POC into six feature slices, with user outcomes, scope, and completion criteria.
-
-Use the slice plan to sequence implementation while preserving the POC specification's requirements and the canonical guidance above. Both documents describe planned capabilities; verify implementation and acceptance evidence before treating a capability as complete.
-
-Dockside is the planned initial environment backend over Docker. Read the [Dockside integration guidance](docs/poc.md#docksides-role) before environment work. Reuse its lifecycle and IDE access through a typed adapter; Crucible owns experiment semantics and trusted evaluation. Verify a restricted profile and network boundaries before running vulnerable targets. Dockside's default development profile is not the POC target profile.
+Dockside is the initial environment backend over Docker. Read [`docs/dockside-local.md`](docs/dockside-local.md) before environment work. Reuse its lifecycle and IDE access through a typed adapter; Crucible owns experiment semantics and trusted evaluation. Verify a restricted profile and network boundaries before running vulnerable targets. Dockside's default development profile is not the target profile.

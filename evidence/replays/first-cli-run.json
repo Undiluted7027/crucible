@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "runId": "0dd8305c-7ae4-42c7-9399-8cde82586fa4",
+  "recordedAt": "2026-09-20T12:10:53.927Z",
+  "capsule": "invoice",
+  "advisory": "GHSA-r5fr-rjxr-66jc",
+  "scope": "Curated invoice fixture, not the scanned repository. Application-level mitigation on lodash 4.17.20; unrelated audit findings remain unresolved.",
+  "environment": {
+    "backend": "Dockside",
+    "image": "crucible/invoice-vulnerable:slice1",
+    "imageId": "sha256:cc62c7cee8a42e9abd23f77db795b15c3f726f5f7dbb2fcdeb42239c7c41e190",
+    "platform": "linux/arm64",
+    "network": "crucible-invoice-v1"
+  },
+  "inputs": {
+    "src/audit/catalog.ts": "4447284b791272ec17c205ec265aa88159523a15d9d8fed9eda84165aa531f8b",
+    "src/audit/scan.ts": "fd8a07dd23fba7eecf1c2602fe52cc47c1799b910a035e1593af199cbe9699e7",
+    "src/cli.ts": "ee21804cdae39e6b50d0bfdf7593282de13c7203b86f575825583a06560a308e",
+    "src/compatibility/verify.ts": "2a2897889f2cbba436ccdd00632ced19d222fd0037456cd45ec276afddf68069",
+    "src/contracts/environment.ts": "07de1a50852fe484ac16069848d364772a8840e54cbfc1667857f97657d9975a",
+    "src/dockside/adapter.integration.test.ts": "90a1e20fc4908e9a3942135c889307795fffdbcf70d6de7dc6b592c35d8a054f",
+    "src/dockside/adapter.test.ts": "9e27eb6c871fbd0da5f07a1e8598f2b3da94aa1e2375ec84c31a3ccdd0ab819f",
+    "src/dockside/adapter.ts": "4efb886f78fa176edb7b1d873c723c056b8ea942a14fae21d8887c1f11d754a0",
+    "src/dockside/process.test.ts": "324a3a71de89be2c7929dd319ed19b57ae2cff90a8cc1926d488b631cc244a97",
+    "src/dockside/process.ts": "ea70cc53f263dc60cdb5df371cd1a379729e923bb713987e15d8954dda88a545",
+    "src/dockside/schema.ts": "b5b4304b87d0ecbf657a3c3c7f7b3668ece4f08fac6a3e6c3b57bef04f561899",
+    "src/replay/checks.ts": "a0821e8140201894cdc973b34653c94f78f30295af37a682e63fbec81dd2dcb8",
+    "src/replay/evidence.ts": "870abf068b5ed8bb224b2a3350a128b884141db857ccb483438f96c741d6b4a3",
+    "src/replay/runner.ts": "22c4ef420af734fdca9c546c3c126610b4c1a7d7c274a0665f95af1757a6d0af",
+    "src/tsconfig.json": "9c0e1eee41ff0f4e6f61bad944de173db447c9cc8f59e239a42a4f8e5e0e0f42",
+    "capsules/invoice/replay/package-lock.json": "f4cbc6dce3d72055074d376136e4db8fa4734f18c99d08cbcb449de3192ce6ff",
+    "capsules/invoice/replay/package.json": "5a201d1430d8f6b5ca50c0ff55185878d1cd53873e5f59be07286fbb44ddb210",
+    "capsules/invoice/replay/patches/broken.ts": "a46e3365df9794be023ef29fac3fb6c65d2e9995ce5d4f45b5f15e5d22d5aa52",
+    "capsules/invoice/replay/patches/fixed.ts": "3ec26935c458db4ae675c57035c58cb407c8becd8e4dcdefb7ed3398ad26f5b9",
+    "capsules/invoice/replay/src/render.ts": "a9be1079202ce08e8ded23da2605f11aa955367de6152556712ea401ad6d1efd",
+    "capsules/invoice/replay/src/server.ts": "3571188204502aa232d7e9ae0466bddddce7b024aee7045921cc7eb58fa6cb60",
+    "config/dockside/compatibility.json": "f75797fdd24adaa3942647fb6484a36fbc270ffc29ec06ff519fb329036cb059",
+    "config/dockside/crucible-invoice-v1.json": "9dd218044a72b3817e8051bda477408605d3a07e6734309f5e6ba76611bda310",
+    "package.json": "80f5d3d1d3c12506de46dd7bfe80a628743ab1405ee70fe392d5b11e7a392fcb",
+    "package-lock.json": "b6a63d6898cbcf18bb0fa716624a313d270fa4d9d45397e8c2124c7b5a8148c9"
+  },
+  "changedDuringRun": [],
+  "results": [
+    {
+      "revision": "vulnerable",
+      "verdict": "VIOLATION_REPRODUCED",
+      "observations": [
+        {
+          "name": "imports-code-injection",
+          "kind": "trigger",
+          "outcome": "reproduced",
+          "status": 500,
+          "body": "CRUCIBLE_EXECUTION_PROOF",
+          "durationMs": 63
+        },
+        {
+          "name": "standard-invoice",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 200,
+          "body": "Total: $42",
+          "durationMs": 53
+        },
+        {
+          "name": "custom-currency",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 200,
+          "body": "Total: €42",
+          "durationMs": 38
+        },
+        {
+          "name": "server-owned-template",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 400,
+          "body": "Client templates are not supported",
+          "durationMs": 40
+        }
+      ],
+      "cleanup": true
+    },
+    {
+      "revision": "broken",
+      "verdict": "FUNCTIONALITY_REGRESSION",
+      "observations": [
+        {
+          "name": "imports-code-injection",
+          "kind": "trigger",
+          "outcome": "blocked",
+          "status": 200,
+          "body": "Total: $42",
+          "durationMs": 61
+        },
+        {
+          "name": "standard-invoice",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 200,
+          "body": "Total: $42",
+          "durationMs": 48
+        },
+        {
+          "name": "custom-currency",
+          "kind": "control",
+          "outcome": "regression",
+          "status": 200,
+          "body": "Total: $42",
+          "durationMs": 50
+        },
+        {
+          "name": "server-owned-template",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 400,
+          "body": "Client templates are not supported",
+          "durationMs": 43
+        }
+      ],
+      "cleanup": true
+    },
+    {
+      "revision": "fixed",
+      "verdict": "DECLARED_CHECKS_PASSED",
+      "observations": [
+        {
+          "name": "imports-code-injection",
+          "kind": "trigger",
+          "outcome": "blocked",
+          "status": 500,
+          "body": "Unsupported imports option",
+          "durationMs": 43
+        },
+        {
+          "name": "standard-invoice",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 200,
+          "body": "Total: $42",
+          "durationMs": 36
+        },
+        {
+          "name": "custom-currency",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 200,
+          "body": "Total: €42",
+          "durationMs": 39
+        },
+        {
+          "name": "server-owned-template",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 400,
+          "body": "Client templates are not supported",
+          "durationMs": 38
+        }
+      ],
+      "cleanup": true
+    }
+  ]
+}

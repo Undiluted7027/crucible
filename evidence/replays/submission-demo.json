@@ -1,0 +1,238 @@
+{
+  "schemaVersion": 1,
+  "runId": "1a02c884-ae6b-4cb6-b687-c3dd299b572d",
+  "startedAt": "2026-09-20T13:42:59.055Z",
+  "recordedAt": "2026-09-20T13:44:00.247Z",
+  "durationMs": 61190,
+  "cancelled": false,
+  "capsule": "invoice",
+  "advisory": "GHSA-r5fr-rjxr-66jc",
+  "requests": [
+    {
+      "name": "imports-code-injection",
+      "kind": "trigger",
+      "body": {
+        "data": {
+          "amount": 42
+        },
+        "options": {
+          "imports": {
+            "a=(function(){throw new Error('CRUCIBLE_EXECUTION_PROOF')})()": null
+          }
+        }
+      }
+    },
+    {
+      "name": "standard-invoice",
+      "kind": "control",
+      "body": {
+        "data": {
+          "amount": 42
+        }
+      }
+    },
+    {
+      "name": "custom-currency",
+      "kind": "control",
+      "body": {
+        "data": {
+          "amount": 42
+        },
+        "options": {
+          "imports": {
+            "currency": "€"
+          }
+        }
+      }
+    },
+    {
+      "name": "server-owned-template",
+      "kind": "control",
+      "body": {
+        "template": "Client template",
+        "data": {
+          "amount": 42
+        }
+      }
+    }
+  ],
+  "host": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "node": "v24.18.0"
+  },
+  "scope": "Curated invoice fixture, not the scanned repository. Application-level mitigation on lodash 4.17.20; unrelated audit findings remain unresolved.",
+  "environment": {
+    "backend": "Dockside",
+    "image": "crucible/invoice-vulnerable:slice1",
+    "imageId": "sha256:cc62c7cee8a42e9abd23f77db795b15c3f726f5f7dbb2fcdeb42239c7c41e190",
+    "platform": "linux/arm64",
+    "network": "crucible-invoice-v1"
+  },
+  "inputs": {
+    "src/audit/catalog.ts": "4d01ddfbdb078b91c2c6e99ae652dc6fa19e0821a04487ec928e5c5ea061faab",
+    "src/audit/command.ts": "55f9f45318e810004e14a1cd800e9448aae4a29330d0aec87f10398eeb66d141",
+    "src/audit/scan.test.ts": "2499045a7a6526c7fa46d0cf2dc93f740e00c39cf86c402de7550d81716559c2",
+    "src/audit/scan.ts": "0c5ed125aac5102050427c5e161fece62da94b12fbcf7ea2f983570cb3ae077c",
+    "src/cli.ts": "45908627296550c65129ea85ae06e93b9769c13b3ae274d981033df91414d3c7",
+    "src/compatibility/verify.ts": "06dd918601ebb92f4f25fc038baa8b6a455d410c0478b9d611d672f14bbd608f",
+    "src/contracts/environment.ts": "c03572b476f156c3dc707195c4cf9fba3c78f7c48181cd5a0cd6d0a39788212d",
+    "src/dockside/adapter.integration.test.ts": "56d715a98d05f8da0acba898c5e7a02e5c15ace9f81ebd912ec0d80212e6bfa6",
+    "src/dockside/adapter.test.ts": "1ff97bbba4030b42983bd13ad5d979d1a7d636ff191acdfc3551786a51426b13",
+    "src/dockside/adapter.ts": "6875f82c5d6b817ab1b4a267ad3b55459f0a14839d9932f1791712b2b9e37fd0",
+    "src/dockside/container-scripts.test.ts": "f9b79dd27718f376ac31dba8fd0732c5530ff234d8e559ebbfe958ce5442b805",
+    "src/dockside/container-scripts.ts": "468390474275840209e3610712b3d5ba6af10e5d86e438cc63288acf1c112781",
+    "src/dockside/process.test.ts": "b5b13a06e92315a6a95ca37410e0e0e7ce14bc5ede63400d5fbca9a1eaffa1f4",
+    "src/dockside/process.ts": "6a91824325a0f1c6f016f2b771047ec02c7e770bd5d6b1f3ad6080a663f219a5",
+    "src/dockside/reviewed-setup.test.ts": "ebb6bc54b695db4b4cbc2a9056307934c7108fb685f1666ca2e938b3bfabeea9",
+    "src/dockside/reviewed-setup.ts": "94ea3e8f92a34aa74496928144a5303b81934d8a013e7bd58babe6010f00bc0d",
+    "src/dockside/schema.ts": "99ec4af44f65e9d6f878717106cb777666ee19caa79e9b723e055346b8b7f35a",
+    "src/errors.ts": "5567e69b0555277f44b40f748afab565bb366885a91d489f6ed60b805d00ac4d",
+    "src/output.ts": "77829ed45dcbd7566dd66fe9ebbd5bd02729179b7dbee0614b4ee7167cc1e8e8",
+    "src/replay/checks.test.ts": "44451fe2d7fd619c2416e78016f5cb888bce8626e94ed27e2abefeec91712fb5",
+    "src/replay/checks.ts": "2357b16cd613c1ee94d6bdc7edeeb423ac08d4c707d7899133f630d87e90ea20",
+    "src/replay/command.ts": "480dd0b68f7fd3a8580cdde454778abbaf46999daf1ce7cc3dce3ab965b412fe",
+    "src/replay/evidence.ts": "80f2b5c38dd01247fe118012fc6924debb3a6aa10bea779c03dd02ec28f165a6",
+    "src/replay/gate.test.ts": "932d72df3298374adcbf2dc4f9262398faf07034d62ac9d6a6a682f56ed78f5e",
+    "src/replay/gate.ts": "86bc66935cea123323090fda96a9273235ad16369e090b0aaa399ab75c5ad2cb",
+    "src/replay/report.test.ts": "ea2fcdb23952ecb58f3ae8d32d1a592a1e3507887a63541b827da23dade06482",
+    "src/replay/report.ts": "f18c5e7501723564cc7f69cfa56503f2f276cca888ba941e5df3a6c761157e8b",
+    "src/replay/runner.test.ts": "e4a8ee2367b6ecbb1ed1b1a1b1b5bbfcd7968afdf45e6e845ef3846a0c45d1e4",
+    "src/replay/runner.ts": "7c0f09a21868080356d0e3f36ae2f86aa9a2291e1df6485b703073660ba53784",
+    "src/replay/schema.ts": "92f39f9800ccd59874030036bd57dc8fa1ec2cd11fb79886ee0fe8c98fb16d9b",
+    "src/replay/target.test.ts": "6df62b9970358184b3acfebf2cdf758a395e1beee9d4386ffacb5e704e1cc200",
+    "src/replay/target.ts": "9c0c5d224d1f9f923d7d2f9d1f2c11751a2cd8341ce98c0a885fd9cc280593bb",
+    "src/replay/test-helpers.ts": "608e79b6c97ab568f0234d1b7ba1c6e761f5b7abe573f3459c249c17851e03da",
+    "src/tsconfig.json": "9c0e1eee41ff0f4e6f61bad944de173db447c9cc8f59e239a42a4f8e5e0e0f42",
+    "capsules/invoice/replay/package-lock.json": "f4cbc6dce3d72055074d376136e4db8fa4734f18c99d08cbcb449de3192ce6ff",
+    "capsules/invoice/replay/package.json": "234ac163fee7d6c023436d8cfcea119ff6518cb678153671350df290cbda310b",
+    "capsules/invoice/replay/patches/broken.ts": "a46e3365df9794be023ef29fac3fb6c65d2e9995ce5d4f45b5f15e5d22d5aa52",
+    "capsules/invoice/replay/patches/fixed.ts": "3ec26935c458db4ae675c57035c58cb407c8becd8e4dcdefb7ed3398ad26f5b9",
+    "capsules/invoice/replay/src/render.ts": "a9be1079202ce08e8ded23da2605f11aa955367de6152556712ea401ad6d1efd",
+    "capsules/invoice/replay/src/server.ts": "3571188204502aa232d7e9ae0466bddddce7b024aee7045921cc7eb58fa6cb60",
+    "config/dockside/compatibility.json": "f75797fdd24adaa3942647fb6484a36fbc270ffc29ec06ff519fb329036cb059",
+    "config/dockside/crucible-invoice-v1.json": "9dd218044a72b3817e8051bda477408605d3a07e6734309f5e6ba76611bda310",
+    "package.json": "80f5d3d1d3c12506de46dd7bfe80a628743ab1405ee70fe392d5b11e7a392fcb",
+    "package-lock.json": "b6a63d6898cbcf18bb0fa716624a313d270fa4d9d45397e8c2124c7b5a8148c9"
+  },
+  "changedDuringRun": [],
+  "results": [
+    {
+      "revision": "vulnerable",
+      "verdict": "VIOLATION_REPRODUCED",
+      "observations": [
+        {
+          "name": "imports-code-injection",
+          "kind": "trigger",
+          "outcome": "reproduced",
+          "status": 500,
+          "body": "CRUCIBLE_EXECUTION_PROOF",
+          "durationMs": 56
+        },
+        {
+          "name": "standard-invoice",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 200,
+          "body": "Total: $42",
+          "durationMs": 36
+        },
+        {
+          "name": "custom-currency",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 200,
+          "body": "Total: €42",
+          "durationMs": 38
+        },
+        {
+          "name": "server-owned-template",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 400,
+          "body": "Client templates are not supported",
+          "durationMs": 37
+        }
+      ],
+      "cleanup": true
+    },
+    {
+      "revision": "broken",
+      "verdict": "FUNCTIONALITY_REGRESSION",
+      "observations": [
+        {
+          "name": "imports-code-injection",
+          "kind": "trigger",
+          "outcome": "blocked",
+          "status": 200,
+          "body": "Total: $42",
+          "durationMs": 62
+        },
+        {
+          "name": "standard-invoice",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 200,
+          "body": "Total: $42",
+          "durationMs": 44
+        },
+        {
+          "name": "custom-currency",
+          "kind": "control",
+          "outcome": "regression",
+          "status": 200,
+          "body": "Total: $42",
+          "durationMs": 62
+        },
+        {
+          "name": "server-owned-template",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 400,
+          "body": "Client templates are not supported",
+          "durationMs": 59
+        }
+      ],
+      "cleanup": true
+    },
+    {
+      "revision": "fixed",
+      "verdict": "DECLARED_CHECKS_PASSED",
+      "observations": [
+        {
+          "name": "imports-code-injection",
+          "kind": "trigger",
+          "outcome": "blocked",
+          "status": 500,
+          "body": "Unsupported imports option",
+          "durationMs": 57
+        },
+        {
+          "name": "standard-invoice",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 200,
+          "body": "Total: $42",
+          "durationMs": 57
+        },
+        {
+          "name": "custom-currency",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 200,
+          "body": "Total: €42",
+          "durationMs": 55
+        },
+        {
+          "name": "server-owned-template",
+          "kind": "control",
+          "outcome": "passed",
+          "status": 400,
+          "body": "Client templates are not supported",
+          "durationMs": 38
+        }
+      ],
+      "cleanup": true
+    }
+  ]
+}

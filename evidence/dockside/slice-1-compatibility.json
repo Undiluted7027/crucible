@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-20T13:38:50.945Z",
+  "host": {
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "dockside": {
+    "tag": "v4.0.1",
+    "revision": "c5834215605e4230f9c1f6b576fd8f49b5a71629",
+    "reportedVersion": "v4.0.1 (c583421)",
+    "cliVersion": "dockside 0.2.0",
+    "imageId": "sha256:876acbdf7152d51c732b41acaf9addabadfcbb6bde3d2d7e8c7b2361a8da3c12",
+    "containerId": "e290ae95eef754172f85461084ca2ea7bd89894b9de4ce29f6a13974b3b16aad"
+  },
+  "target": {
+    "capsule": "invoice-lodash-template-imports",
+    "reservationId": "fba5deb559c40100",
+    "containerId": "a6ee5c53a6b4",
+    "image": "crucible/invoice-vulnerable:slice1",
+    "imageId": "sha256:cc62c7cee8a42e9abd23f77db795b15c3f726f5f7dbb2fcdeb42239c7c41e190",
+    "profile": "crucible-invoice-v1",
+    "network": "crucible-invoice-v1",
+    "routes": [
+      {
+        "kind": "service",
+        "name": "app",
+        "url": "https://app-crucible-verify-1789911446263.local.dockside.dev/",
+        "access": "owner"
+      },
+      {
+        "kind": "ide",
+        "name": "ide",
+        "url": "https://ide-crucible-verify-1789911446263.local.dockside.dev/?folder=%2Fhome%2Fcrucible",
+        "access": "owner"
+      }
+    ],
+    "anonymousRouteStatus": {
+      "application": 400,
+      "ide": 400
+    }
+  },
+  "lifecycle": {
+    "createdState": "running",
+    "readiness": {
+      "status": "ready",
+      "observedAt": "2026-09-20T13:37:29.381Z",
+      "statusCode": 200
+    },
+    "stoppedState": "stopped",
+    "restartedState": "running",
+    "removed": true,
+    "logBytesRetained": 33,
+    "logsTruncated": false
+  },
+  "failures": {
+    "failedLaunchExplicit": true,
+    "failedLaunchReservationCleaned": true,
+    "readinessTimeoutExplicit": true,
+    "stopTimeoutExplicit": true,
+    "removalTimeoutExplicit": true,
+    "cleanupVerified": true
+  },
+  "containment": {
+    "internalNetwork": true,
+    "noBindMounts": true,
+    "noDockerSocket": true,
+    "noSensitiveEnvironment": true,
+    "cannotReadHostSecret": true,
+    "cannotReachInternet": true,
+    "cannotReachManagement": true,
+    "cannotReachUnrelatedTarget": true
+  },
+  "cleanup": {
+    "before": [],
+    "after": []
+  },
+  "limitations": [
+    "This evidence covers the selected invoice target and named probes on Docker Desktop for linux/arm64.",
+    "It is not a claim that containers safely contain arbitrary hostile workloads."
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "dependencies": {
+    "express": "4.18.2",
+    "lodash": "4.17.20"
+  },
+  "devDependencies": {
+    "@types/express": "4.17.17",
+    "@types/lodash": "4.14.191",
+    "@types/node": "24.13.6",
+    "typescript": "6.0.3"
+  },
+  "name": "@crucible/invoice-target",
+  "version": "0.0.0",
+  "description": "Curated invoice target for the Crucible lodash capsule",
+  "type": "module",
+  "private": true
+}

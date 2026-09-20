@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.crucible/
+.env
+.env.*
+!.env.example
+capsules/*/target/node_modules/
+capsules/*/target/dist/
+evidence/tmp/
+capsules/invoice/target/src/*.js
+capsules/invoice/target/src/*.js.map
+capsules/invoice/target/src/*.d.ts
+capsules/invoice/target/src/*.d.ts.map
+
+
