@@ -1,0 +1,28 @@
+{
+  "server": {
+    "tag": "v4.0.1",
+    "revision": "c5834215605e4230f9c1f6b576fd8f49b5a71629",
+    "image": "newsnowlabs/dockside:v4.0.1",
+    "platform": "linux/arm64",
+    "indexDigest": "sha256:876acbdf7152d51c732b41acaf9addabadfcbb6bde3d2d7e8c7b2361a8da3c12",
+    "platformDigest": "sha256:832e545125d11af181d09d53dbab18a074717cc998dc4ad58ca3918a951b1144"
+  },
+  "cli": {
+    "revision": "c5834215605e4230f9c1f6b576fd8f49b5a71629"
+  },
+  "target": {
+    "profile": "crucible-invoice-v1",
+    "image": "crucible/invoice-vulnerable:slice1",
+    "network": "crucible-invoice-v1",
+    "platform": "linux/arm64",
+    "imageId": "sha256:cc62c7cee8a42e9abd23f77db795b15c3f726f5f7dbb2fcdeb42239c7c41e190"
+  },
+  "limits": {
+    "operationTimeoutMs": 120000,
+    "readinessTimeoutMs": 60000,
+    "readinessPollMs": 2000,
+    "cleanupTimeoutMs": 60000,
+    "environmentLeaseMs": 1800000,
+    "maxOutputBytes": 262144
+  }
+}

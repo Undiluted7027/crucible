@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "name": "Crucible invoice target",
+  "description": "Restricted profile for the curated invoice capsule",
+  "active": true,
+  "routers": [
+    {
+      "name": "app",
+      "prefixes": ["app"],
+      "domains": ["*"],
+      "https": { "protocol": "http", "port": 3000 },
+      "auth": ["owner", "developer"]
+    }
+  ],
+  "networks": ["crucible-invoice-v1"],
+  "runtimes": ["runc"],
+  "images": ["crucible/invoice-vulnerable:slice1"],
+  "unixusers": ["crucible"],
+  "mounts": {
+    "tmpfs": [
+      { "dst": "/tmp", "tmpfs-size": "64M" }
+    ],
+    "bind": [],
+    "volume": []
+  },
+  "gitURLs": [],
+  "IDEs": ["openvscode/1.109.5"],
+  "ssh": false,
+  "runDockerInit": true,
+  "dockerArgs": [
+    "--cpus=1",
+    "--memory=1G",
+    "--memory-swap=1G",
+    "--pids-limit=256",
+    "--security-opt=no-new-privileges:true",
+    "--cap-drop=NET_RAW",
+    "--cap-drop=MKNOD",
+    "--cap-drop=AUDIT_WRITE",
+    "--cap-drop=SETFCAP"
+  ]
+}
