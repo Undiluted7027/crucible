@@ -133,3 +133,42 @@ test("remove stops a running environment first and fails loudly if Dockside stil
 
   await assert.rejects(adapter(dockside(0).run).remove("invoice-1"), /still reports invoice-1 after removal/);
 });
+
+// A fake Dockside for removal. `statuses` are what successive `list` calls report (the last one repeats), and
+// `removeResult` is what the `remove` command itself does.
+function removalDockside(statuses: number[], removeResult: ProcessResult = result()) {
+  const commands: string[] = [];
+  const run = async (request: ProcessRequest): Promise<ProcessResult> => {
+    const command = request.args[2] ?? "";
+    commands.push(command);
+    if (command === "list") {
+      const status = statuses.length > 1 ? statuses.shift() : statuses[0];
+      return result({ stdout: JSON.stringify([{ ...reservation, status }]) });
+    }
+    return command === "remove" ? removeResult : result();
+  };
+  return { commands, adapter: adapter(run) };
+}
+
+test("removal tolerates Dockside having already deleted the environment, or still finishing an earlier removal", async () => {
+  // Dockside keeps listing a deleted reservation (status -3); there is nothing left to remove.
+  const alreadyDeleted = removalDockside([-3]);
+  await alreadyDeleted.adapter.remove("invoice-1");
+  assert.ok(!alreadyDeleted.commands.includes("remove"));
+
+  // Our command fails because Dockside is still finishing an earlier removal (still listed as stopped for a moment).
+  const stillDeleting = removalDockside([0, 0, 0, -3], result({ exitCode: 1, stderr: "docker rm failed" }));
+  await stillDeleting.adapter.remove("invoice-1");
+});
+
+test("removal still fails for a real error, and a timed-out removal stays a timeout even if Dockside finishes it", async () => {
+  await assert.rejects(removalDockside([0], result({ exitCode: 1, stderr: "docker error" })).adapter.remove("invoice-1"), /remove failed/);
+
+  const timedOut = removalDockside([0, -3], result({ exitCode: -1, timedOut: true }));
+  await assert.rejects(timedOut.adapter.remove("invoice-1"), (error: unknown) => {
+    assert.ok(error instanceof DocksideOperationError);
+    assert.equal(error.failure.operation, "remove");
+    assert.equal(error.failure.timedOut, true);
+    return true;
+  });
+});

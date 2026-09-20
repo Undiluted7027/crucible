@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import { errorMessage } from "../errors.js";
 import type {
   EnvironmentFailure,
@@ -49,6 +50,16 @@ export class DocksideOperationError extends Error {
     this.failure = failure;
   }
 }
+
+/** Dockside keeps listing a deleted reservation, with this status, after its environment is gone. */
+const deletedStatus = -3;
+
+/**
+ * How long a failed removal waits for Dockside to finish deleting on its own. Dockside runs `docker rm` in the
+ * background, and a second removal that overlaps one already running fails until the first completes (observed to
+ * take about a second). Capped by the adapter's operation deadline.
+ */
+const removalSettleMs = 5_000;
 
 /**
  * Maps Dockside's numeric reservation status. -4 failed, -3 deleted, -2 preparing, -1 created, 0 stopped, 1 running.
@@ -179,18 +190,27 @@ export class DocksideAdapter {
   }
 
   /**
-   * Stops (if running) and removes an environment, then confirms Dockside no longer lists it. Removing something
-   * that is already gone succeeds, so cleanup can safely be retried.
+   * Stops (if running) and removes an environment, then confirms Dockside no longer lists it as live. Safe to retry:
+   * a reservation that is unlisted or already marked deleted counts as removed. If our removal fails because Dockside
+   * is still finishing an earlier one (such as one that timed out here), we wait briefly for it to complete instead
+   * of reporting a failure. A timed-out removal is still reported as a timeout, because whether it will complete is
+   * unknown.
    */
   async remove(identifier: string): Promise<void> {
-    const before = (await this.list()).find((item) => item.id === identifier || item.name === identifier);
-    if (before === undefined) return;
+    const before = await this.findReservation(identifier);
+    if (before === undefined || before.status === deletedStatus) return;
     if (before.status === 1) await this.stop(before.id);
-    await this.execute("remove", ["remove", identifier, "--force", "--timeout", String(Math.ceil(this.config.operationTimeoutMs / 1_000))]);
-    const reservations = await this.list();
-    const remaining = reservations.find((item) => item.id === identifier || item.name === identifier);
-    // Status -3 means deleted. Any higher status means the reservation still exists.
-    if (remaining !== undefined && remaining.status > -3) {
+    try {
+      await this.execute("remove", ["remove", identifier, "--force", "--timeout", String(Math.ceil(this.config.operationTimeoutMs / 1_000))]);
+    } catch (error) {
+      const timedOut = error instanceof DocksideOperationError && error.failure.timedOut;
+      // Dockside refuses to remove what is already deleted or being deleted, so check before calling this a failure.
+      if (!timedOut && (await this.waitUntilDeleted(identifier))) return;
+      throw error;
+    }
+    const remaining = await this.findReservation(identifier);
+    // Statuses at or below -3 (deleted, failed) are not live. Anything higher means the reservation still exists.
+    if (remaining !== undefined && remaining.status > deletedStatus) {
       throw this.error("remove", `Dockside still reports ${identifier} after removal`, undefined, false, JSON.stringify(remaining));
     }
   }
@@ -249,6 +269,28 @@ export class DocksideAdapter {
     };
   }
 
+  private async findReservation(identifier: string): Promise<DocksideReservation | undefined> {
+    return (await this.list()).find((item) => item.id === identifier || item.name === identifier);
+  }
+
+  /**
+   * True once Dockside reports the reservation gone or deleted, polling for up to `removalSettleMs`. False if it
+   * stays live for that long, or if Dockside cannot answer (assume not deleted rather than guess).
+   */
+  private async waitUntilDeleted(identifier: string): Promise<boolean> {
+    const deadline = Date.now() + Math.min(removalSettleMs, this.config.operationTimeoutMs);
+    do {
+      try {
+        const reservation = await this.findReservation(identifier);
+        if (reservation === undefined || reservation.status === deletedStatus) return true;
+      } catch {
+        return false;
+      }
+      await delay(this.config.readinessPollMs);
+    } while (Date.now() < deadline);
+    return false;
+  }
+
   private async list(): Promise<readonly DocksideReservation[]> {
     const result = await this.execute("get", ["list", "--output", "json"]);
     return this.parseJson("get", result.stdout, docksideReservationListSchema.parse);
@@ -260,8 +302,7 @@ export class DocksideAdapter {
     operation: EnvironmentFailure["operation"],
     accepts: (reservation: DocksideReservation) => boolean,
   ): Promise<EnvironmentSnapshot> {
-    const reservations = await this.list();
-    const reservation = reservations.find((item) => item.id === identifier || item.name === identifier);
+    const reservation = await this.findReservation(identifier);
     if (reservation === undefined) {
       throw this.error(operation, `Dockside no longer reports ${identifier}`, undefined, false);
     }
