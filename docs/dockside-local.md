@@ -73,6 +73,6 @@ npm run test:integration
 npm run dockside:verify
 ```
 
-The verifier writes [slice-1-compatibility.json](../evidence/dockside/slice-1-compatibility.json). It checks the lifecycle, application readiness, routes, resource configuration, mounts, environment, selected network boundaries, and before/after resource inventory.
+The verifier writes [slice-1-compatibility.json](../evidence/dockside/slice-1-compatibility.json). It checks the lifecycle, application readiness, routes, resource configuration, mounts, environment, selected network boundaries, failure handling (a missing image, and readiness, stop and removal timeouts), and before/after resource inventory.
 
 This is evidence for the curated invoice target on the recorded host. It does not establish that Docker containers safely contain arbitrary hostile workloads.

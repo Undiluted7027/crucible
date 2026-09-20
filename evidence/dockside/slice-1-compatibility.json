@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "recordedAt": "2026-09-19T17:59:15.681Z",
+  "recordedAt": "2026-09-20T13:38:50.945Z",
   "host": {
     "platform": "darwin",
     "architecture": "arm64"
@@ -11,27 +11,27 @@
     "reportedVersion": "v4.0.1 (c583421)",
     "cliVersion": "dockside 0.2.0",
     "imageId": "sha256:876acbdf7152d51c732b41acaf9addabadfcbb6bde3d2d7e8c7b2361a8da3c12",
-    "containerId": "e149138796cfec078ec3eddf215069efb9f3f446ea0c2e876dae8573fc33929f"
+    "containerId": "e290ae95eef754172f85461084ca2ea7bd89894b9de4ce29f6a13974b3b16aad"
   },
   "target": {
     "capsule": "invoice-lodash-template-imports",
-    "reservationId": "3e5d6752effc014a",
-    "containerId": "4bc4953ca515",
+    "reservationId": "fba5deb559c40100",
+    "containerId": "a6ee5c53a6b4",
     "image": "crucible/invoice-vulnerable:slice1",
-    "imageId": "sha256:dfa997f5c51c12698feff67d55bc00a0d7a0dd2a48b86317273e10e1dd01299f",
+    "imageId": "sha256:cc62c7cee8a42e9abd23f77db795b15c3f726f5f7dbb2fcdeb42239c7c41e190",
     "profile": "crucible-invoice-v1",
     "network": "crucible-invoice-v1",
     "routes": [
       {
         "kind": "service",
         "name": "app",
-        "url": "https://app-crucible-verify-1789840737690.local.dockside.dev/",
+        "url": "https://app-crucible-verify-1789911446263.local.dockside.dev/",
         "access": "owner"
       },
       {
         "kind": "ide",
         "name": "ide",
-        "url": "https://ide-crucible-verify-1789840737690.local.dockside.dev/?folder=%2Fhome%2Fcrucible",
+        "url": "https://ide-crucible-verify-1789911446263.local.dockside.dev/?folder=%2Fhome%2Fcrucible",
         "access": "owner"
       }
     ],
@@ -44,7 +44,7 @@
     "createdState": "running",
     "readiness": {
       "status": "ready",
-      "observedAt": "2026-09-19T17:59:00.497Z",
+      "observedAt": "2026-09-20T13:37:29.381Z",
       "statusCode": 200
     },
     "stoppedState": "stopped",
@@ -52,6 +52,14 @@
     "removed": true,
     "logBytesRetained": 33,
     "logsTruncated": false
+  },
+  "failures": {
+    "failedLaunchExplicit": true,
+    "failedLaunchReservationCleaned": true,
+    "readinessTimeoutExplicit": true,
+    "stopTimeoutExplicit": true,
+    "removalTimeoutExplicit": true,
+    "cleanupVerified": true
   },
   "containment": {
     "internalNetwork": true,
