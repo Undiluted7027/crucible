@@ -2,6 +2,7 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { explainCommand, scanCommand } from "./audit/command.js";
+import { errorMessage } from "./errors.js";
 import { assertNewFile, clean } from "./output.js";
 import { demoCommand, replayCommand, reportCommand, verifyCommand } from "./replay/command.js";
 
@@ -80,7 +81,7 @@ run().then(
     process.exitCode = exitCode;
   },
   (error: unknown) => {
-    console.error(`Crucible: ${clean(error instanceof Error ? error.message : String(error))}`);
+    console.error(`Crucible: ${clean(errorMessage(error))}`);
     process.exitCode = 2;
   },
 );

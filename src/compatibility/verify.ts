@@ -1,12 +1,23 @@
+/**
+ * `npm run dockside:verify`: proves this machine's Dockside installation can host the reviewed invoice target
+ * safely, then records what it observed in evidence/dockside/slice-1-compatibility.json.
+ *
+ * It needs the prepared installation described in docs/dockside-local.md and creates and removes real containers,
+ * networks and (briefly) a Docker image tag. Every check throws on failure, so reaching the end means all held.
+ * Not to be confused with `crucible verify`, which only compares saved replay evidence with the files on disk.
+ */
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { z } from "zod";
 import { DocksideAdapter, DocksideOperationError } from "../dockside/adapter.js";
-import { runProcess } from "../dockside/process.js";
+import { internetDeniedScript, pathAbsentScript, tcpDeniedScript } from "../dockside/container-scripts.js";
+import { runChecked, runProcess } from "../dockside/process.js";
 import {
-  compatibilityTimeouts, docksideAdapterConfig, invoiceTarget, invoiceTargetRequest, managerContainer, sensitiveEnvironmentPattern,
+  compatibilityTimeouts, docksideAdapterConfig, invoiceTarget, invoiceTargetRequest, managerContainer,
+  sensitiveEnvironmentPattern,
 } from "../dockside/reviewed-setup.js";
 import { docksideReservationListSchema } from "../dockside/schema.js";
 
@@ -16,8 +27,12 @@ const { network: targetNetwork, image: targetImage } = invoiceTarget;
 const unrelatedNetwork = "crucible-unrelated-probe-v1";
 const unrelatedContainer = "crucible-unrelated-probe";
 const expectedDocksideImageId = "sha256:876acbdf7152d51c732b41acaf9addabadfcbb6bde3d2d7e8c7b2361a8da3c12";
+// Seen by the Dockside container at /data/containment/host-secret, and never by a target.
+const hostSecretPath = resolve(root, ".crucible/dockside-data/containment/host-secret");
+const hostSecretPathInContainers = "/data/containment/host-secret";
+const evidencePath = resolve(root, "evidence/dockside/slice-1-compatibility.json");
 
-const inspectSchema = z.array(
+const containerSchema = z.array(
   z.object({
     Id: z.string(),
     Image: z.string(),
@@ -49,36 +64,54 @@ const networkSchema = z.array(
   }),
 );
 
-async function command(command: string, args: readonly string[], timeoutMs = 15_000): Promise<string> {
-  const result = await runProcess({ command, args, timeoutMs, maxOutputBytes: 262_144 });
-  if (result.exitCode !== 0 || result.timedOut) {
-    throw new Error(`${command} ${args[0] ?? ""} failed: ${result.stderr.trim()}`);
-  }
-  return result.stdout;
+type ContainerInspection = z.infer<typeof containerSchema>[number];
+type NetworkInspection = z.infer<typeof networkSchema>[number];
+
+// ---- Running commands -------------------------------------------------------------------------------------------
+
+/** Runs a command that must succeed and returns its stdout. */
+function run(command: string, args: readonly string[]): Promise<string> {
+  return runChecked({ command, args, timeoutMs: 15_000, maxOutputBytes: 262_144 });
 }
 
-async function dockerJson<T>(args: readonly string[], parse: (input: unknown) => T): Promise<T> {
-  return parse(JSON.parse(await command("docker", args)));
+async function inspectContainer(nameOrId: string): Promise<ContainerInspection> {
+  const [container] = containerSchema.parse(JSON.parse(await run("docker", ["inspect", nameOrId])));
+  assert.ok(container !== undefined, `docker inspect returned nothing for ${nameOrId}`);
+  return container;
 }
 
-async function probeTarget(containerId: string, source: string, args: readonly string[] = []): Promise<boolean> {
+async function inspectNetwork(name: string): Promise<NetworkInspection> {
+  const [network] = networkSchema.parse(JSON.parse(await run("docker", ["network", "inspect", name])));
+  assert.ok(network !== undefined, `docker network inspect returned nothing for ${name}`);
+  return network;
+}
+
+/** The address a container has on a network, without the subnet suffix. */
+function addressOn(network: NetworkInspection, containerName: string): string {
+  const endpoint = Object.values(network.Containers).find(({ Name }) => Name === containerName);
+  const address = endpoint?.IPv4Address.split("/")[0];
+  assert.ok(address !== undefined && address !== "", `${containerName} has no address on the network`);
+  return address;
+}
+
+/**
+ * Runs a probe script inside a container and reports whether the action was denied.
+ * A probe that fails to run counts as not denied, so a broken probe cannot pass.
+ */
+async function isDenied(containerId: string, script: string, args: readonly string[] = []): Promise<boolean> {
   const result = await runProcess({
     command: "docker",
-    args: ["exec", containerId, "node", "-e", source, ...args],
+    args: ["exec", containerId, "node", "-e", script, ...args],
     timeoutMs: 8_000,
     maxOutputBytes: 16_384,
   });
   return result.exitCode === 0 && !result.timedOut;
 }
 
+/** Containers labelled as owned by Crucible. Compared before and after to prove nothing leaked. */
 async function resourceInventory(): Promise<readonly string[]> {
-  const output = await command("docker", [
-    "ps",
-    "-a",
-    "--filter",
-    "label=owner.username=crucible",
-    "--format",
-    "{{.ID}} {{.Names}} {{.Status}}",
+  const output = await run("docker", [
+    "ps", "-a", "--filter", "label=owner.username=crucible", "--format", "{{.ID}} {{.Names}} {{.Status}}",
   ]);
   return output.trim() === "" ? [] : output.trim().split("\n").sort();
 }
@@ -89,212 +122,265 @@ async function reservationExists(name: string): Promise<boolean> {
     args: ["--server", adapterConfig.server, "list", "--output", "json"],
     timeoutMs: 10_000,
     maxOutputBytes: 262_144,
-    env: {
-      ...process.env,
-      DOCKSIDE_CLI_CONFIG: adapterConfig.cliConfigDirectory,
-    },
+    env: { ...process.env, DOCKSIDE_CLI_CONFIG: adapterConfig.cliConfigDirectory },
   });
   if (result.exitCode !== 0 || result.timedOut) throw new Error(`Could not inspect Dockside reservations: ${result.stderr}`);
   return docksideReservationListSchema.parse(JSON.parse(result.stdout)).some((item) => item.name === name);
 }
 
-async function removeOwnedProbeResources(): Promise<void> {
-  await runProcess({
-    command: "docker",
-    args: ["container", "rm", "--force", unrelatedContainer],
-    timeoutMs: 10_000,
-    maxOutputBytes: 16_384,
-  });
-  await runProcess({
-    command: "docker",
-    args: ["network", "rm", unrelatedNetwork],
-    timeoutMs: 10_000,
-    maxOutputBytes: 16_384,
-  });
+async function waitForReservationRemoved(name: string, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (await reservationExists(name)) {
+    assert.ok(Date.now() < deadline, `Dockside still lists ${name} after ${timeoutMs}ms`);
+    await delay(1_000);
+  }
+}
+
+async function removeUnrelatedProbeResources(): Promise<void> {
+  for (const args of [["container", "rm", "--force", unrelatedContainer], ["network", "rm", unrelatedNetwork]]) {
+    await runProcess({ command: "docker", args, timeoutMs: 10_000, maxOutputBytes: 16_384 });
+  }
+}
+
+// ---- Environments created by this run ---------------------------------------------------------------------------
+
+/** Environments created and not yet removed. `main` removes any left behind when a check fails. */
+const liveEnvironments = new Set<string>();
+
+async function createTarget(adapter: DocksideAdapter, name: string) {
+  const environment = await adapter.create(invoiceTargetRequest(name));
+  liveEnvironments.add(environment.id);
+  return environment;
+}
+
+async function removeTarget(adapter: DocksideAdapter, id: string): Promise<void> {
+  await adapter.remove(id);
+  liveEnvironments.delete(id);
+}
+
+// ---- Checks, in the order they run ------------------------------------------------------------------------------
+
+/** The pinned Dockside server and CLI are installed and running, and the target network is internal. */
+async function checkInstallation() {
+  const dockside = await inspectContainer(managerContainer);
+  assert.equal(dockside.Image, expectedDocksideImageId);
+  assert.equal(dockside.State.Running, true);
+  const serverVersion = (await run("docker", ["exec", managerContainer, "cat", "/etc/service/nginx/data/version"])).trim();
+  const cliVersion = (await run(adapterConfig.executable, ["--version"])).trim();
+  assert.equal(serverVersion, "v4.0.1 (c583421)");
+  assert.equal(cliVersion, "dockside 0.2.0");
+
+  const network = await inspectNetwork(targetNetwork);
+  assert.equal(network.Internal, true);
+  return {
+    managerAddress: addressOn(network, managerContainer),
+    internalNetwork: network.Internal,
+    evidence: {
+      tag: "v4.0.1",
+      revision: "c5834215605e4230f9c1f6b576fd8f49b5a71629",
+      reportedVersion: serverVersion,
+      cliVersion,
+      imageId: dockside.Image,
+      containerId: dockside.Id,
+    },
+  };
+}
+
+function hasDockerSocket(target: ContainerInspection): boolean {
+  return target.Mounts.some(({ Destination }) => Destination === "/var/run/docker.sock");
+}
+
+function hasCredentialEnvironment(target: ContainerInspection): boolean {
+  return (target.Config.Env ?? []).some((entry) => sensitiveEnvironmentPattern.test(entry));
+}
+
+/** The running target has exactly the restricted profile: limits, capabilities, mounts, and no credentials. */
+function assertRestrictedConfiguration(target: ContainerInspection): void {
+  const { limits } = invoiceTarget;
+  assert.equal(target.Image, invoiceTarget.imageId);
+  assert.equal(target.Config.User, invoiceTarget.unixuser);
+  assert.equal(target.HostConfig.NetworkMode, targetNetwork);
+  assert.equal(target.HostConfig.Memory, limits.memoryBytes);
+  assert.equal(target.HostConfig.MemorySwap, limits.memoryBytes);
+  assert.equal(target.HostConfig.NanoCpus, limits.nanoCpus);
+  assert.equal(target.HostConfig.PidsLimit, limits.pidsLimit);
+  assert.equal(target.HostConfig.Binds, null);
+  assert.ok(target.HostConfig.SecurityOpt?.includes("no-new-privileges:true"));
+  assert.deepEqual(
+    [...(target.HostConfig.CapDrop ?? [])].sort(),
+    ["CAP_AUDIT_WRITE", "CAP_MKNOD", "CAP_NET_RAW", "CAP_SETFCAP"].sort(),
+  );
+  assert.equal(hasDockerSocket(target), false);
+  assert.equal(target.Mounts.some(({ Type }) => Type === "bind"), false);
+  assert.equal(hasCredentialEnvironment(target), false);
+}
+
+/**
+ * From inside the target, the host secret is invisible and the internet, the Dockside management container, and an
+ * unrelated target on another internal network are all unreachable. Creates the unrelated target and the secret for
+ * the probes and removes both afterwards.
+ */
+async function probeContainment(containerId: string, managerAddress: string) {
+  await mkdir(dirname(hostSecretPath), { recursive: true });
+  await writeFile(hostSecretPath, randomBytes(32), { mode: 0o600 });
+  try {
+    await run("docker", [
+      "network", "create", "--internal", "--label", "dev.crucible.owner=compatibility-probe", unrelatedNetwork,
+    ]);
+    // A listener the target could reach only if the networks were not isolated from each other.
+    const listener = "require('node:net').createServer(() => {}).listen(4040); setInterval(() => {}, 10000)";
+    await run("docker", [
+      "run", "--detach", "--name", unrelatedContainer, "--network", unrelatedNetwork, "--entrypoint", "node",
+      targetImage, "-e", listener,
+    ]);
+    const unrelatedAddress = addressOn(await inspectNetwork(unrelatedNetwork), unrelatedContainer);
+
+    const probes = {
+      cannotReadHostSecret: await isDenied(containerId, pathAbsentScript, [hostSecretPathInContainers]),
+      cannotReachInternet: await isDenied(containerId, internetDeniedScript),
+      cannotReachManagement: await isDenied(containerId, tcpDeniedScript, ["2500", `${managerAddress}:443`]),
+      cannotReachUnrelatedTarget: await isDenied(containerId, tcpDeniedScript, ["2500", `${unrelatedAddress}:4040`]),
+    };
+    assert.deepEqual(Object.values(probes), [true, true, true, true], `containment probe failed: ${JSON.stringify(probes)}`);
+    return probes;
+  } finally {
+    await removeUnrelatedProbeResources();
+    await unlink(hostSecretPath).catch((error: unknown) => {
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+    });
+  }
+}
+
+/**
+ * The happy path: a target starts, becomes ready, is not reachable anonymously, has the restricted configuration
+ * and containment, and survives stop, start and removal.
+ */
+async function checkRunningTarget(adapter: DocksideAdapter, name: string, managerAddress: string) {
+  const running = await createTarget(adapter, name);
+  assert.ok(running.containerId !== undefined);
+  const { containerId } = running;
+  const ready = await adapter.waitUntilReady(running.id, "app");
+
+  const applicationRoute = ready.routes.find((route) => route.name === "app");
+  const ideRoute = ready.routes.find((route) => route.kind === "ide");
+  assert.ok(applicationRoute !== undefined);
+  assert.ok(ideRoute !== undefined);
+  const anonymousStatus = async (url: string) => Number((await run("curl", [
+    "--insecure", "--silent", "--output", "/dev/null", "--write-out", "%{http_code}", url,
+  ])).trim());
+  const anonymousRouteStatus = {
+    application: await anonymousStatus(applicationRoute.url),
+    ide: await anonymousStatus(ideRoute.url),
+  };
+  assert.notEqual(anonymousRouteStatus.application, 200);
+  assert.notEqual(anonymousRouteStatus.ide, 200);
+
+  const target = await inspectContainer(containerId);
+  assertRestrictedConfiguration(target);
+  const probes = await probeContainment(containerId, managerAddress);
+
+  const logs = await adapter.logs(running.id);
+  const stopped = await adapter.stop(running.id);
+  const restarted = await adapter.start(running.id);
+  await removeTarget(adapter, running.id);
+
+  return {
+    target: {
+      capsule: "invoice-lodash-template-imports",
+      reservationId: running.id,
+      containerId,
+      image: targetImage,
+      imageId: target.Image,
+      profile: running.profile,
+      network: running.network,
+      routes: ready.routes,
+      anonymousRouteStatus,
+    },
+    lifecycle: {
+      createdState: running.state,
+      readiness: ready.readiness,
+      stoppedState: stopped.state,
+      restartedState: restarted.state,
+      removed: true,
+      logBytesRetained: logs.retainedBytes,
+      logsTruncated: logs.truncated,
+    },
+    containment: {
+      noBindMounts: target.HostConfig.Binds === null,
+      noDockerSocket: !hasDockerSocket(target),
+      noSensitiveEnvironment: !hasCredentialEnvironment(target),
+      ...probes,
+    },
+  };
+}
+
+/** A target that is running but cannot serve is reported as a failed readiness timeout, not as ready. */
+async function checkReadinessTimeout(adapter: DocksideAdapter, shortDeadlineAdapter: DocksideAdapter, name: string) {
+  const environment = await createTarget(adapter, `${name}-not-ready`);
+  assert.ok(environment.containerId !== undefined);
+  await run("docker", ["network", "disconnect", targetNetwork, environment.containerId]);
+  const failed = await shortDeadlineAdapter.waitUntilReady(environment.id, "app");
+  assert.equal(failed.state, "failed");
+  assert.equal(failed.readiness.status, "failed");
+  assert.equal(failed.failure?.operation, "readiness");
+  assert.equal(failed.failure?.timedOut, true);
+  await run("docker", ["network", "connect", targetNetwork, environment.containerId]);
+  await removeTarget(adapter, environment.id);
+}
+
+/**
+ * A missing target image makes Dockside's create fail explicitly, and Dockside then cleans up its reservation.
+ * The image tag is removed and restored, even if the check fails.
+ */
+async function checkFailedLaunch(adapter: DocksideAdapter, name: string) {
+  const failedLaunchName = `${name}-failed-launch`;
+  const backupImage = "crucible/invoice-vulnerable:compatibility-backup";
+  await run("docker", ["image", "tag", targetImage, backupImage]);
+  await run("docker", ["image", "rm", targetImage]);
+  try {
+    await assert.rejects(adapter.create(invoiceTargetRequest(failedLaunchName)), (error: unknown) => {
+      assert.ok(error instanceof DocksideOperationError);
+      assert.equal(error.failure.operation, "create");
+      return true;
+    });
+  } finally {
+    await run("docker", ["image", "tag", backupImage, targetImage]);
+    await run("docker", ["image", "rm", backupImage]);
+  }
+  await waitForReservationRemoved(failedLaunchName, 45_000);
+}
+
+/** Stop and remove that overrun the controller's deadline fail with an explicit timeout, and can then be finished. */
+async function checkOperationTimeouts(adapter: DocksideAdapter, shortDeadlineAdapter: DocksideAdapter, name: string) {
+  const expectTimeout = (operation: "stop" | "remove") => (error: unknown) => {
+    assert.ok(error instanceof DocksideOperationError);
+    assert.equal(error.failure.operation, operation);
+    assert.equal(error.failure.timedOut, true);
+    return true;
+  };
+  const environment = await createTarget(adapter, `${name}-timeouts`);
+  await assert.rejects(shortDeadlineAdapter.stop(environment.id), expectTimeout("stop"));
+  // The timed-out stop may still have completed in Dockside.
+  if ((await adapter.get(environment.id)).state === "running") await adapter.stop(environment.id);
+  await assert.rejects(shortDeadlineAdapter.remove(environment.id), expectTimeout("remove"));
+  await delay(1_500);
+  await removeTarget(adapter, environment.id);
 }
 
 async function main(): Promise<void> {
   const before = await resourceInventory();
   const name = `crucible-verify-${Date.now()}`;
-  const hostSecretPath = resolve(root, ".crucible/dockside-data/containment/host-secret");
-  let environmentId: string | undefined;
-
   const adapter = new DocksideAdapter(adapterConfig);
   const shortDeadlineAdapter = new DocksideAdapter(
     docksideAdapterConfig(root, { operationTimeoutMs: 500, readinessTimeoutMs: 1_000, readinessPollMs: 250 }),
   );
 
   try {
-    await mkdir(dirname(hostSecretPath), { recursive: true });
-    await writeFile(hostSecretPath, randomBytes(32), { mode: 0o600 });
-
-    const dockside = (await dockerJson(["inspect", managerContainer], inspectSchema.parse))[0];
-    assert.ok(dockside !== undefined);
-    assert.equal(dockside.Image, expectedDocksideImageId);
-    assert.equal(dockside.State.Running, true);
-    const serverVersion = (await command("docker", ["exec", managerContainer, "cat", "/etc/service/nginx/data/version"])).trim();
-    const cliVersion = (await command(adapterConfig.executable, ["--version"])).trim();
-    assert.equal(serverVersion, "v4.0.1 (c583421)");
-    assert.equal(cliVersion, "dockside 0.2.0");
-
-    const targetNetworkState = (await dockerJson(["network", "inspect", targetNetwork], networkSchema.parse))[0];
-    assert.ok(targetNetworkState !== undefined);
-    assert.equal(targetNetworkState.Internal, true);
-    const docksideEndpoint = Object.values(targetNetworkState.Containers).find(({ Name }) => Name === managerContainer);
-    assert.ok(docksideEndpoint !== undefined);
-    const docksideIp = docksideEndpoint.IPv4Address.split("/")[0];
-    assert.ok(docksideIp !== undefined && docksideIp !== "");
-
-    const running = await adapter.create(invoiceTargetRequest(name));
-    environmentId = running.id;
-    assert.ok(running.containerId !== undefined);
-    const ready = await adapter.waitUntilReady(running.id, "app");
-    const containerId = running.containerId;
-    const applicationRoute = ready.routes.find(({ name: routeName }) => routeName === "app");
-    const ideRoute = ready.routes.find(({ kind }) => kind === "ide");
-    assert.ok(applicationRoute !== undefined);
-    assert.ok(ideRoute !== undefined);
-    const anonymousApplicationStatus = Number((await command("curl", ["--insecure", "--silent", "--output", "/dev/null", "--write-out", "%{http_code}", applicationRoute.url])).trim());
-    const anonymousIdeStatus = Number((await command("curl", ["--insecure", "--silent", "--output", "/dev/null", "--write-out", "%{http_code}", ideRoute.url])).trim());
-    assert.notEqual(anonymousApplicationStatus, 200);
-    assert.notEqual(anonymousIdeStatus, 200);
-
-    const target = (await dockerJson(["inspect", containerId], inspectSchema.parse))[0];
-    assert.ok(target !== undefined);
-    assert.equal(target.Image, invoiceTarget.imageId);
-    assert.equal(target.Config.User, invoiceTarget.unixuser);
-    assert.equal(target.HostConfig.NetworkMode, targetNetwork);
-    assert.equal(target.HostConfig.Memory, invoiceTarget.limits.memoryBytes);
-    assert.equal(target.HostConfig.MemorySwap, invoiceTarget.limits.memoryBytes);
-    assert.equal(target.HostConfig.NanoCpus, invoiceTarget.limits.nanoCpus);
-    assert.equal(target.HostConfig.PidsLimit, invoiceTarget.limits.pidsLimit);
-    assert.equal(target.HostConfig.Binds, null);
-    assert.ok(target.HostConfig.SecurityOpt?.includes("no-new-privileges:true"));
-    assert.deepEqual(
-      [...(target.HostConfig.CapDrop ?? [])].sort(),
-      ["CAP_AUDIT_WRITE", "CAP_MKNOD", "CAP_NET_RAW", "CAP_SETFCAP"].sort(),
-    );
-    assert.equal(target.Mounts.some(({ Destination }) => Destination === "/var/run/docker.sock"), false);
-    assert.equal(target.Mounts.some(({ Type }) => Type === "bind"), false);
-    assert.equal(
-      (target.Config.Env ?? []).some((entry) => sensitiveEnvironmentPattern.test(entry)),
-      false,
-    );
-
-    await command("docker", ["network", "create", "--internal", "--label", "dev.crucible.owner=compatibility-probe", unrelatedNetwork]);
-    await command("docker", [
-      "run",
-      "--detach",
-      "--name",
-      unrelatedContainer,
-      "--network",
-      unrelatedNetwork,
-      "--entrypoint",
-      "node",
-      targetImage,
-      "-e",
-      "require('node:net').createServer(() => {}).listen(4040); setInterval(() => {}, 10000)",
-    ]);
-    const unrelatedState = (await dockerJson(["network", "inspect", unrelatedNetwork], networkSchema.parse))[0];
-    assert.ok(unrelatedState !== undefined);
-    const unrelatedIp = Object.values(unrelatedState.Containers).find(({ Name }) => Name === unrelatedContainer)?.IPv4Address.split("/")[0];
-    assert.ok(unrelatedIp !== undefined && unrelatedIp !== "");
-
-    const cannotReadHostSecret = await probeTarget(
-      containerId,
-      "const fs=require('node:fs'); process.exit(fs.existsSync('/data/containment/host-secret') ? 2 : 0)",
-    );
-    const cannotReachInternet = await probeTarget(
-      containerId,
-      "fetch('https://example.com',{signal:AbortSignal.timeout(2500)}).then(()=>process.exit(2)).catch(()=>process.exit(0))",
-    );
-    const tcpDenied = "const net=require('node:net');const s=net.connect(Number(process.argv[1]),process.argv[2]);const done=(code)=>{s.destroy();process.exit(code)};s.setTimeout(2500,()=>done(0));s.on('error',()=>done(0));s.on('connect',()=>done(2));";
-    const cannotReachManagement = await probeTarget(containerId, tcpDenied, ["443", docksideIp]);
-    const cannotReachUnrelatedTarget = await probeTarget(containerId, tcpDenied, ["4040", unrelatedIp]);
-    assert.equal(cannotReadHostSecret, true);
-    assert.equal(cannotReachInternet, true);
-    assert.equal(cannotReachManagement, true);
-    assert.equal(cannotReachUnrelatedTarget, true);
-
-    const logs = await adapter.logs(running.id);
-    const stopped = await adapter.stop(running.id);
-    const restarted = await adapter.start(running.id);
-    await adapter.remove(running.id);
-    environmentId = undefined;
-    await removeOwnedProbeResources();
-    await unlink(hostSecretPath);
-
-    const notReadyName = `${name}-not-ready`;
-    const notReadyEnvironment = await adapter.create(invoiceTargetRequest(notReadyName));
-    environmentId = notReadyEnvironment.id;
-    assert.ok(notReadyEnvironment.containerId !== undefined);
-    await command("docker", ["network", "disconnect", targetNetwork, notReadyEnvironment.containerId]);
-    const failedReadiness = await shortDeadlineAdapter.waitUntilReady(notReadyEnvironment.id, "app");
-    const readinessTimeoutExplicit = failedReadiness.state === "failed"
-      && failedReadiness.readiness.status === "failed"
-      && failedReadiness.failure?.operation === "readiness"
-      && failedReadiness.failure.timedOut;
-    assert.equal(readinessTimeoutExplicit, true);
-    await command("docker", ["network", "connect", targetNetwork, notReadyEnvironment.containerId]);
-    await adapter.remove(notReadyEnvironment.id);
-    environmentId = undefined;
-
-    const failedLaunchName = `${name}-failed-launch`;
-    const backupImage = "crucible/invoice-vulnerable:compatibility-backup";
-    let failedLaunchExplicit = false;
-    let failedLaunchReservationCleaned = false;
-    await command("docker", ["image", "tag", targetImage, backupImage]);
-    await command("docker", ["image", "rm", targetImage]);
-    try {
-      await adapter.create(invoiceTargetRequest(failedLaunchName));
-      assert.fail("Dockside unexpectedly launched a missing target image");
-    } catch (error) {
-      assert.ok(error instanceof DocksideOperationError);
-      assert.equal(error.failure.operation, "create");
-      failedLaunchExplicit = true;
-    } finally {
-      await command("docker", ["image", "tag", backupImage, targetImage]);
-      await command("docker", ["image", "rm", backupImage]);
-    }
-    const failedLaunchCleanupDeadline = Date.now() + 45_000;
-    while (Date.now() < failedLaunchCleanupDeadline) {
-      if (!(await reservationExists(failedLaunchName))) {
-        failedLaunchReservationCleaned = true;
-        break;
-      }
-      await new Promise((resolvePromise) => setTimeout(resolvePromise, 1_000));
-    }
-    assert.equal(failedLaunchReservationCleaned, true);
-
-    const timeoutName = `${name}-timeouts`;
-    const timeoutEnvironment = await adapter.create(invoiceTargetRequest(timeoutName));
-    environmentId = timeoutEnvironment.id;
-    let stopTimeoutExplicit = false;
-    try {
-      await shortDeadlineAdapter.stop(timeoutEnvironment.id);
-      assert.fail("The short stop deadline unexpectedly completed");
-    } catch (error) {
-      assert.ok(error instanceof DocksideOperationError);
-      assert.equal(error.failure.operation, "stop");
-      assert.equal(error.failure.timedOut, true);
-      stopTimeoutExplicit = true;
-    }
-    const afterTimedOutStop = await adapter.get(timeoutEnvironment.id);
-    if (afterTimedOutStop.state === "running") await adapter.stop(timeoutEnvironment.id);
-
-    let removalTimeoutExplicit = false;
-    try {
-      await shortDeadlineAdapter.remove(timeoutEnvironment.id);
-      assert.fail("The short removal deadline unexpectedly completed");
-    } catch (error) {
-      assert.ok(error instanceof DocksideOperationError);
-      assert.equal(error.failure.operation, "remove");
-      assert.equal(error.failure.timedOut, true);
-      removalTimeoutExplicit = true;
-    }
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 1_500));
-    await adapter.remove(timeoutEnvironment.id);
-    environmentId = undefined;
+    const installation = await checkInstallation();
+    const running = await checkRunningTarget(adapter, name, installation.managerAddress);
+    await checkReadinessTimeout(adapter, shortDeadlineAdapter, name);
+    await checkFailedLaunch(adapter, name);
+    await checkOperationTimeouts(adapter, shortDeadlineAdapter, name);
 
     const after = await resourceInventory();
     assert.deepEqual(after, before);
@@ -303,79 +389,36 @@ async function main(): Promise<void> {
       schemaVersion: 1,
       recordedAt: new Date().toISOString(),
       host: { platform: process.platform, architecture: process.arch },
-      dockside: {
-        tag: "v4.0.1",
-        revision: "c5834215605e4230f9c1f6b576fd8f49b5a71629",
-        reportedVersion: serverVersion,
-        cliVersion,
-        imageId: dockside.Image,
-        containerId: dockside.Id,
-      },
-      target: {
-        capsule: "invoice-lodash-template-imports",
-        reservationId: running.id,
-        containerId,
-        image: targetImage,
-        imageId: target.Image,
-        profile: running.profile,
-        network: running.network,
-        routes: ready.routes,
-        anonymousRouteStatus: {
-          application: anonymousApplicationStatus,
-          ide: anonymousIdeStatus,
-        },
-      },
-      lifecycle: {
-        createdState: running.state,
-        readiness: ready.readiness,
-        stoppedState: stopped.state,
-        restartedState: restarted.state,
-        removed: true,
-        logBytesRetained: logs.retainedBytes,
-        logsTruncated: logs.truncated,
-      },
+      dockside: installation.evidence,
+      target: running.target,
+      lifecycle: running.lifecycle,
+      // Each failure check above throws if its behavior was not observed, so reaching here means all were.
       failures: {
-        failedLaunchExplicit,
-        failedLaunchReservationCleaned,
-        readinessTimeoutExplicit,
-        stopTimeoutExplicit,
-        removalTimeoutExplicit,
+        failedLaunchExplicit: true,
+        failedLaunchReservationCleaned: true,
+        readinessTimeoutExplicit: true,
+        stopTimeoutExplicit: true,
+        removalTimeoutExplicit: true,
         cleanupVerified: true,
       },
-      containment: {
-        internalNetwork: targetNetworkState.Internal,
-        noBindMounts: target.HostConfig.Binds === null,
-        noDockerSocket: !target.Mounts.some(({ Destination }) => Destination === "/var/run/docker.sock"),
-        noSensitiveEnvironment: !(target.Config.Env ?? []).some((entry) => sensitiveEnvironmentPattern.test(entry)),
-        cannotReadHostSecret,
-        cannotReachInternet,
-        cannotReachManagement,
-        cannotReachUnrelatedTarget,
-      },
+      containment: { internalNetwork: installation.internalNetwork, ...running.containment },
       cleanup: { before, after },
       limitations: [
         "This evidence covers the selected invoice target and named probes on Docker Desktop for linux/arm64.",
         "It is not a claim that containers safely contain arbitrary hostile workloads.",
       ],
     };
-    const path = resolve(root, "evidence/dockside/slice-1-compatibility.json");
-    await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o644 });
-    process.stdout.write(`${path}\n`);
+    await mkdir(dirname(evidencePath), { recursive: true });
+    await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o644 });
+    process.stdout.write(`${evidencePath}\n`);
   } finally {
-    if (environmentId !== undefined) {
+    for (const id of liveEnvironments) {
       try {
-        await adapter.remove(environmentId);
+        await adapter.remove(id);
       } catch {
         // The caller receives the original compatibility failure. Remaining owned
         // resources stay visible for manual inspection instead of being hidden.
       }
-    }
-    await removeOwnedProbeResources();
-    try {
-      await unlink(hostSecretPath);
-    } catch (error) {
-      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
     }
   }
 }

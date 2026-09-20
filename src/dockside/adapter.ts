@@ -1,3 +1,4 @@
+import { errorMessage } from "../errors.js";
 import type {
   EnvironmentFailure,
   EnvironmentLog,
@@ -286,8 +287,7 @@ export class DocksideAdapter {
     try {
       return parse(JSON.parse(raw));
     } catch (cause) {
-      const detail = cause instanceof Error ? cause.message : String(cause);
-      throw this.error(operation, `Dockside returned malformed ${operation} output`, undefined, false, detail);
+      throw this.error(operation, `Dockside returned malformed ${operation} output`, undefined, false, errorMessage(cause));
     }
   }
 

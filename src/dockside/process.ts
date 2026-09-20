@@ -81,3 +81,16 @@ export async function runProcess(request: ProcessRequest): Promise<ProcessResult
     }
   });
 }
+
+/**
+ * Runs a command and returns its stdout. Throws unless it exited 0 before its deadline with untruncated output,
+ * so callers never parse partial data.
+ */
+export async function runChecked(request: ProcessRequest): Promise<string> {
+  const result = await runProcess(request);
+  if (result.exitCode !== 0 || result.timedOut || result.outputTruncated) {
+    const reason = result.timedOut ? "timed out" : result.outputTruncated ? "output exceeded its limit" : `exited ${result.exitCode}`;
+    throw new Error(`${request.command} ${request.args[0] ?? ""} failed (${reason}): ${result.stderr.slice(-1000).trim()}`);
+  }
+  return result.stdout;
+}
