@@ -4,6 +4,7 @@ import ts from "typescript";
 import { z } from "zod";
 import { catalog } from "./catalog.js";
 
+// npm audit report format v2. Anything else, including an npm error document, is rejected rather than read as "no findings".
 const advisorySchema = z.object({
   source: z.union([z.number(), z.string()]),
   name: z.string().optional(),
@@ -91,6 +92,11 @@ export function inspectSource(text: string, file: string): CallSite[] {
   return calls;
 }
 
+/**
+ * Turns an npm audit report into findings, one per affected package. An advisory is matched to a reviewed capsule by
+ * its stable GHSA id and package name, never by title. Findings that only inherit from another package, and
+ * advisories with no capsule, are kept and marked UNSUPPORTED, so nothing is dropped or declared safe.
+ */
 export function parseAudit(input: unknown, calls: readonly CallSite[]) {
   const audit = auditSchema.parse(input);
   return Object.entries(audit.vulnerabilities).map(([name, vulnerability]) => ({
@@ -110,6 +116,7 @@ export function parseAudit(input: unknown, calls: readonly CallSite[]) {
 
 export type ScanReport = Awaited<ReturnType<typeof scan>>;
 
+/** Reads the repository's source for call sites and combines them with the audit report. Executes nothing. */
 export async function scan(root: string, input: unknown) {
   const files = await sourceFiles(root);
   const calls: CallSite[] = [];

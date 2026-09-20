@@ -29,7 +29,7 @@ const targetSchema = z.object({
   NetworkSettings: z.object({ Networks: z.record(z.string(), z.object({ IPAddress: z.string() })) }),
 });
 
-type TargetInspection = z.infer<typeof targetSchema>;
+export type TargetInspection = z.infer<typeof targetSchema>;
 
 function docker(args: readonly string[], stdin?: string): Promise<string> {
   return runChecked({
@@ -42,7 +42,7 @@ function docker(args: readonly string[], stdin?: string): Promise<string> {
 }
 
 /** Ways the target differs from the reviewed image and restricted profile. Empty means it matches. */
-function profileViolations(target: TargetInspection): string[] {
+export function profileViolations(target: TargetInspection): string[] {
   const { limits } = invoiceTarget;
   const expectations = [
     { violation: "image is not the reviewed image", holds: target.Image === invoiceTarget.imageId },
@@ -129,3 +129,7 @@ export async function sendCheck(address: string, body: unknown): Promise<Respons
   );
   return responseSchema.parse(JSON.parse(stdout));
 }
+
+/** The Docker-level operations a replay performs on a target. `replay()` accepts substitutes so tests need no Docker. */
+export const dockerTarget = { assertRestrictedTarget, installRevision, sendCheck };
+export type TargetOperations = typeof dockerTarget;

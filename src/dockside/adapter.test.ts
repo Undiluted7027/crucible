@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DocksideAdapter, DocksideOperationError, docksideInternals } from "./adapter.js";
+import { DocksideAdapter, DocksideOperationError, routesOf, snapshotOf, stateOf } from "./adapter.js";
 import type { ProcessRequest, ProcessResult } from "./process.js";
 
 const reservation = {
@@ -45,13 +45,13 @@ function adapter(run: (request: ProcessRequest) => Promise<ProcessResult>): Dock
 }
 
 test("maps Dockside lifecycle status without treating running as ready", () => {
-  assert.equal(docksideInternals.stateOf(1), "running");
-  assert.equal(docksideInternals.stateOf(-4), "failed");
-  assert.equal(docksideInternals.snapshotOf(reservation).readiness.status, "not-checked");
+  assert.equal(stateOf(1), "running");
+  assert.equal(stateOf(-4), "failed");
+  assert.equal(snapshotOf(reservation).readiness.status, "not-checked");
 });
 
 test("returns only access-controlled routes", () => {
-  const routes = docksideInternals.routesOf(reservation);
+  const routes = routesOf(reservation);
   assert.deepEqual(
     routes.map(({ kind, name, access }) => ({ kind, name, access })),
     [
@@ -94,4 +94,42 @@ test("returns an explicit timed-out operation failure", async () => {
 test("sanitizes terminal controls in logs", async () => {
   const logs = await adapter(async () => result({ stdout: "safe\u001b[31m red\u001b[0m\u0000", outputTruncated: true })).logs("invoice-1");
   assert.deepEqual(logs, { text: "safe red", truncated: true, retainedBytes: 8 });
+});
+
+test("readiness means the health route answers 200: it keeps polling, and on timeout reports the last thing it saw", async () => {
+  const healthChecks = (statuses: number[]) => async (request: ProcessRequest): Promise<ProcessResult> => {
+    if (request.args.includes("check-url")) return result({ stdout: JSON.stringify({ status: statuses.shift() ?? 503 }) });
+    return result({ stdout: JSON.stringify(reservation) });
+  };
+
+  const ready = await adapter(healthChecks([503, 503, 200])).waitUntilReady("invoice-1", "app");
+  assert.equal(ready.state, "ready");
+  assert.equal(ready.readiness.status, "ready");
+
+  const neverHealthy = await adapter(healthChecks([])).waitUntilReady("invoice-1", "app");
+  assert.equal(neverHealthy.state, "failed");
+  assert.equal(neverHealthy.failure?.operation, "readiness");
+  assert.equal(neverHealthy.failure?.timedOut, true);
+  assert.partialDeepStrictEqual(neverHealthy.readiness, { status: "failed", reason: "health route returned HTTP 503" });
+});
+
+test("remove stops a running environment first and fails loudly if Dockside still lists it afterwards", async () => {
+  const dockside = (statusAfterRemove: number) => {
+    const commands: string[] = [];
+    let status = 1;
+    const run = async (request: ProcessRequest): Promise<ProcessResult> => {
+      const command = request.args[2] ?? "";
+      commands.push(command);
+      if (command === "stop") status = 0;
+      if (command === "remove") status = statusAfterRemove;
+      return command === "list" ? result({ stdout: JSON.stringify([{ ...reservation, status }]) }) : result();
+    };
+    return { commands, run };
+  };
+
+  const removed = dockside(-3);
+  await adapter(removed.run).remove("invoice-1");
+  assert.deepEqual(removed.commands.filter((command) => command === "stop" || command === "remove"), ["stop", "remove"]);
+
+  await assert.rejects(adapter(dockside(0).run).remove("invoice-1"), /still reports invoice-1 after removal/);
 });

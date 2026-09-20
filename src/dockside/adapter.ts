@@ -15,6 +15,7 @@ import {
 } from "./schema.js";
 import { runProcess, type ProcessRequest, type ProcessResult } from "./process.js";
 
+/** How to reach the local Dockside CLI and how long to wait on it. See reviewed-setup.ts for the pinned values. */
 export interface DocksideAdapterConfig {
   readonly executable: string;
   readonly server: string;
@@ -25,6 +26,7 @@ export interface DocksideAdapterConfig {
   readonly maxOutputBytes: number;
 }
 
+/** What Dockside needs to launch an environment. `access` maps each route name to who may open it. */
 export interface CreateEnvironmentInput {
   readonly name: string;
   readonly profile: string;
@@ -37,6 +39,7 @@ export interface CreateEnvironmentInput {
 
 type ProcessRunner = (request: ProcessRequest) => Promise<ProcessResult>;
 
+/** Thrown for every failed Dockside operation. `failure` carries the operation, exit code, and whether we timed out. */
 export class DocksideOperationError extends Error {
   readonly failure: EnvironmentFailure;
 
@@ -47,7 +50,11 @@ export class DocksideOperationError extends Error {
   }
 }
 
-function stateOf(status: number): EnvironmentState {
+/**
+ * Maps Dockside's numeric reservation status. -4 failed, -3 deleted, -2 preparing, -1 created, 0 stopped, 1 running.
+ * An unknown code is treated as failed so a new Dockside status can never look healthy.
+ */
+export function stateOf(status: number): EnvironmentState {
   switch (status) {
     case -4:
       return "failed";
@@ -66,7 +73,11 @@ function stateOf(status: number): EnvironmentState {
   }
 }
 
-function routesOf(reservation: DocksideReservation): EnvironmentRoute[] {
+/**
+ * The URLs Dockside serves for a reservation. Passthru routers are skipped, and so is any route that is not limited
+ * to the owner or developer, so an unauthenticated URL is never handed out.
+ */
+export function routesOf(reservation: DocksideReservation): EnvironmentRoute[] {
   const parentFqdn = reservation.data.parentFQDN ?? "";
   return reservation.profileObject.routers.flatMap((router) => {
     if (router.type === "passthru") return [];
@@ -87,7 +98,8 @@ function routesOf(reservation: DocksideReservation): EnvironmentRoute[] {
   });
 }
 
-function snapshotOf(reservation: DocksideReservation, readiness: Readiness = { status: "not-checked" }): EnvironmentSnapshot {
+/** Dockside's reservation as an EnvironmentSnapshot. Readiness is not-checked until someone asks the application. */
+export function snapshotOf(reservation: DocksideReservation, readiness: Readiness = { status: "not-checked" }): EnvironmentSnapshot {
   const containerId = reservation.containerId ?? reservation.docker?.ID;
   return {
     id: reservation.id,
@@ -102,19 +114,25 @@ function snapshotOf(reservation: DocksideReservation, readiness: Readiness = { s
   };
 }
 
-function sanitizeText(value: string): string {
+/** Strips ANSI/OSC escape sequences and control characters so untrusted output cannot rewrite a terminal. */
+export function sanitizeText(value: string): string {
   return value
     .replace(/\u001b\[[0-9;:<=>?]*[@-~]/gu, "")
     .replace(/\u001b\][^\u001b\u0007]*(?:\u0007|\u001b\\)/gu, "")
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001a\u001c-\u001f\u007f]/gu, "");
 }
 
+/**
+ * The only door to Dockside. Every call runs the pinned CLI, validates its JSON, and then re-reads the reservation
+ * to confirm the state the caller asked for, because a zero exit code does not prove the state changed.
+ */
 export class DocksideAdapter {
   constructor(
     private readonly config: DocksideAdapterConfig,
     private readonly run: ProcessRunner = runProcess,
   ) {}
 
+  /** Creates and starts an environment. Resolves only if Dockside reports it running (not yet ready). */
   async create(input: CreateEnvironmentInput): Promise<EnvironmentSnapshot> {
     const result = await this.execute(
       "create",
@@ -133,6 +151,7 @@ export class DocksideAdapter {
     return await this.requireState(created.id, "create", (item) => item.status === 1);
   }
 
+  /** Current state of one environment, by reservation id or name. */
   async get(identifier: string): Promise<EnvironmentSnapshot> {
     const result = await this.execute("get", ["get", identifier, "--output", "json"]);
     return snapshotOf(this.parseJson("get", result.stdout, docksideReservationSchema.parse));
@@ -148,6 +167,7 @@ export class DocksideAdapter {
     return await this.requireState(identifier, "stop", (item) => item.status === 0);
   }
 
+  /** Container logs, sanitized and bounded by `maxOutputBytes`. */
   async logs(identifier: string): Promise<EnvironmentLog> {
     const result = await this.execute("logs", ["logs", identifier]);
     const sanitized = sanitizeText(result.stdout);
@@ -158,18 +178,28 @@ export class DocksideAdapter {
     };
   }
 
+  /**
+   * Stops (if running) and removes an environment, then confirms Dockside no longer lists it. Removing something
+   * that is already gone succeeds, so cleanup can safely be retried.
+   */
   async remove(identifier: string): Promise<void> {
     const before = (await this.list()).find((item) => item.id === identifier || item.name === identifier);
     if (before === undefined) return;
-    if (before?.status === 1) await this.stop(before.id);
+    if (before.status === 1) await this.stop(before.id);
     await this.execute("remove", ["remove", identifier, "--force", "--timeout", String(Math.ceil(this.config.operationTimeoutMs / 1_000))]);
     const reservations = await this.list();
     const remaining = reservations.find((item) => item.id === identifier || item.name === identifier);
+    // Status -3 means deleted. Any higher status means the reservation still exists.
     if (remaining !== undefined && remaining.status > -3) {
       throw this.error("remove", `Dockside still reports ${identifier} after removal`, undefined, false, JSON.stringify(remaining));
     }
   }
 
+  /**
+   * Polls the application's `/healthz` route until it returns `expectedStatus`. A running container is not a ready
+   * application. On timeout this returns a `failed` snapshot with the last observation instead of throwing, so the
+   * caller can still read logs. It throws if the environment stops running or loses its route while waiting.
+   */
   async waitUntilReady(identifier: string, serviceRouteName: string, expectedStatus = 200): Promise<EnvironmentSnapshot> {
     const startedAt = new Date().toISOString();
     const deadline = Date.now() + this.config.readinessTimeoutMs;
@@ -185,7 +215,7 @@ export class DocksideAdapter {
         throw this.error("readiness", `Dockside did not return the ${serviceRouteName} route`, undefined, false);
       }
 
-      const check = await this.executeAllowFailure("readiness", [
+      const check = await this.executeAllowFailure([
         "check-url",
         `${route.url}healthz`,
         "--timeout",
@@ -224,6 +254,7 @@ export class DocksideAdapter {
     return this.parseJson("get", result.stdout, docksideReservationListSchema.parse);
   }
 
+  /** Re-reads the reservation and fails unless it is in the state the operation was supposed to produce. */
   private async requireState(
     identifier: string,
     operation: EnvironmentFailure["operation"],
@@ -251,7 +282,7 @@ export class DocksideAdapter {
     args: readonly string[],
     stdin?: string,
   ): Promise<ProcessResult> {
-    const result = await this.executeAllowFailure(operation, args, stdin);
+    const result = await this.executeAllowFailure(args, stdin);
     if (result.exitCode !== 0 || result.timedOut) {
       throw this.error(
         operation,
@@ -265,7 +296,6 @@ export class DocksideAdapter {
   }
 
   private async executeAllowFailure(
-    _operation: EnvironmentFailure["operation"],
     args: readonly string[],
     stdin?: string,
   ): Promise<ProcessResult> {
@@ -308,4 +338,3 @@ export class DocksideAdapter {
   }
 }
 
-export const docksideInternals = { stateOf, routesOf, sanitizeText, snapshotOf };

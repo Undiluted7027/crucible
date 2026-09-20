@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 
+/** One external command to run. Output is bounded and the command is killed at its deadline. */
 export interface ProcessRequest {
   readonly command: string;
   readonly args: readonly string[];
@@ -17,6 +18,7 @@ export interface ProcessResult {
   readonly outputTruncated: boolean;
 }
 
+/** Keeps only the last `limit` bytes. The end of a failing command's output is what explains the failure. */
 class TailBuffer {
   private retained = Buffer.alloc(0);
   private didTruncate = false;
@@ -40,6 +42,11 @@ class TailBuffer {
   }
 }
 
+/**
+ * Runs a command without a shell, so arguments are never interpreted. Never rejects for a non-zero exit; it
+ * reports `exitCode`, `timedOut` and `outputTruncated` and lets the caller decide. It rejects only if the command
+ * cannot be started. On timeout the process gets SIGTERM, then SIGKILL one second later.
+ */
 export async function runProcess(request: ProcessRequest): Promise<ProcessResult> {
   return await new Promise<ProcessResult>((resolve, reject) => {
     const child = spawn(request.command, [...request.args], {

@@ -1,3 +1,4 @@
+/** The one advisory with a reviewed explanation and replay. Adding a case means adding an entry here and a capsule. */
 export const invoiceAdvisory = {
   id: "GHSA-r5fr-rjxr-66jc",
   package: "lodash",

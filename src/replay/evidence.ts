@@ -3,8 +3,16 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { resolve, relative } from "node:path";
 import { replayEvidenceSchema, type ReplayEvidence } from "./schema.js";
 
+/**
+ * Everything a saved result depends on: the controller and checker source, the reviewed capsule revisions, the
+ * Dockside profile and pins, and the dependency lockfile. Changing any of it makes older evidence stale.
+ */
 export const watchedPaths = ["src", "capsules/invoice/replay", "config/dockside", "package.json", "package-lock.json"];
 
+/**
+ * SHA-256 of every file under the watched paths, keyed by path relative to `root`. Skips `node_modules`, `dist`
+ * and symlinks, so build output and links out of the repository never affect it.
+ */
 export async function fingerprint(root: string): Promise<Record<string, string>> {
   const hashes: Record<string, string> = {};
   async function walk(path: string): Promise<void> {
@@ -27,6 +35,7 @@ export async function readEvidence(path: string): Promise<ReplayEvidence> {
   return replayEvidenceSchema.parse(JSON.parse(await readFile(path, "utf8")));
 }
 
+/** Paths added, removed, or modified between two fingerprints, sorted. Deletions count as changes. */
 export function changedInputs(before: Record<string, string>, after: Record<string, string>): string[] {
   return [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((path) => before[path] !== after[path]).sort();
 }

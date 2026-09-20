@@ -1,21 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { Verdict } from "./checks.js";
 import { demoExitCode, replayExitCode, verifyExitCode, verifyStatus } from "./gate.js";
-import type { ReplayEvidence, Revision } from "./schema.js";
-
-function result(revision: Revision, verdict: Verdict, cleanup = true): ReplayEvidence["results"][number] {
-  return { revision, verdict, observations: [], cleanup };
-}
-
-function evidence(results: ReplayEvidence["results"], overrides: Partial<ReplayEvidence> = {}): ReplayEvidence {
-  return {
-    schemaVersion: 1, runId: "run", startedAt: "", recordedAt: "", durationMs: 0, cancelled: false, capsule: "invoice",
-    advisory: "GHSA-test", requests: [], host: { platform: "test", architecture: "test", node: "test" }, scope: "",
-    environment: { backend: "Dockside", image: "", imageId: "", platform: "", network: "" },
-    inputs: { "src/a.ts": "hash" }, changedDuringRun: [], results, ...overrides,
-  };
-}
+import { replayEvidence as evidence, revisionResult as result } from "./test-helpers.js";
 
 const vulnerableAndBroken = [result("vulnerable", "VIOLATION_REPRODUCED"), result("broken", "FUNCTIONALITY_REGRESSION")];
 const expectedDemo = [...vulnerableAndBroken, result("fixed", "DECLARED_CHECKS_PASSED")];

@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// Shapes of the Dockside CLI's JSON. Each schema names only the fields Crucible reads, and `passthrough` tolerates
+// the rest so a newer Dockside adding fields does not break us. A missing or mistyped field we rely on still fails
+// loudly at the adapter boundary.
+
 const routerSchema = z
   .object({
     name: z.string(),
@@ -11,6 +15,7 @@ const routerSchema = z
   })
   .passthrough();
 
+/** One Dockside reservation, which is what Dockside calls an environment. */
 export const docksideReservationSchema = z
   .object({
     id: z.string(),
@@ -57,6 +62,7 @@ export const docksideReservationSchema = z
 
 export const docksideReservationListSchema = z.array(docksideReservationSchema);
 
+/** Result of `dockside check-url`: the HTTP status the URL returned. */
 export const docksideUrlCheckSchema = z
   .object({
     status: z.number().int(),

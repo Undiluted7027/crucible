@@ -1,9 +1,11 @@
 import type { ReplayEvidence } from "./schema.js";
 
+/** Makes untrusted text (target responses, errors) safe inside a Markdown table cell. */
 function cell(value: string): string {
   return value.replace(/[\u0000-\u001f\u007f]/g, " ").replaceAll("|", "\\|").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
+/** A shareable Markdown summary of a saved run. Describes what happened; it is not a new execution or attestation. */
 export function markdownReport(report: ReplayEvidence): string {
   const lines = ["# Crucible replay evidence", "", `Run: ${cell(report.runId)}  `, `Recorded: ${cell(report.recordedAt)}`, "",
     `Advisory: ${cell(report.advisory)}`, "", report.scope, "", "| Revision | Observed result | Target removed |", "| --- | --- | --- |"];

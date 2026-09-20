@@ -27,3 +27,14 @@ test("candidate locations distinguish named aliases and namespace imports from u
   const calls = inspectSource('import { template as compile } from "lodash";\nimport * as versions from "semver";\ncompile("x"); versions.valid("1.0.0"); res.redirect("/");', "server.ts");
   assert.deepEqual(calls.map(({ package: pkg, symbol, line }) => [pkg, symbol, line]), [["lodash", "template", 3], ["semver", "valid", 3]]);
 });
+
+test("default-import calls such as lodash.template are candidates; type-only and relative imports are not", () => {
+  const source = [
+    'import lodash from "lodash";',
+    'import type { Options } from "lodash-types";',
+    'import { local } from "./local.js";',
+    'lodash.template("x"); local();',
+  ].join("\n");
+  const calls = inspectSource(source, "server.ts");
+  assert.deepEqual(calls.map(({ package: pkg, symbol, line }) => [pkg, symbol, line]), [["lodash", "template", 4]]);
+});
