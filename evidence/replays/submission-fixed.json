@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "runId": "ad49f5fe-a560-46f4-ba20-2beb8215ba7d",
-  "startedAt": "2026-09-20T13:17:28.645Z",
-  "recordedAt": "2026-09-20T13:17:47.044Z",
-  "durationMs": 18399,
+  "runId": "9e3deb74-56e6-4f91-b7f8-cbeed17683b1",
+  "startedAt": "2026-09-20T13:44:00.533Z",
+  "recordedAt": "2026-09-20T13:44:21.205Z",
+  "durationMs": 20671,
   "cancelled": false,
   "capsule": "invoice",
   "advisory": "GHSA-r5fr-rjxr-66jc",
@@ -78,8 +78,8 @@
     "src/compatibility/verify.ts": "06dd918601ebb92f4f25fc038baa8b6a455d410c0478b9d611d672f14bbd608f",
     "src/contracts/environment.ts": "c03572b476f156c3dc707195c4cf9fba3c78f7c48181cd5a0cd6d0a39788212d",
     "src/dockside/adapter.integration.test.ts": "56d715a98d05f8da0acba898c5e7a02e5c15ace9f81ebd912ec0d80212e6bfa6",
-    "src/dockside/adapter.test.ts": "238aaf12a145af8925378df1286480e3b67f16e5cf974d29ee8587d0042387b0",
-    "src/dockside/adapter.ts": "3e820339743a3332716f309ce4bb98224c1ca67ac0e6b7c9e28a8fd4dca829af",
+    "src/dockside/adapter.test.ts": "1ff97bbba4030b42983bd13ad5d979d1a7d636ff191acdfc3551786a51426b13",
+    "src/dockside/adapter.ts": "6875f82c5d6b817ab1b4a267ad3b55459f0a14839d9932f1791712b2b9e37fd0",
     "src/dockside/container-scripts.test.ts": "f9b79dd27718f376ac31dba8fd0732c5530ff234d8e559ebbfe958ce5442b805",
     "src/dockside/container-scripts.ts": "468390474275840209e3610712b3d5ba6af10e5d86e438cc63288acf1c112781",
     "src/dockside/process.test.ts": "b5b13a06e92315a6a95ca37410e0e0e7ce14bc5ede63400d5fbca9a1eaffa1f4",
@@ -127,7 +127,7 @@
           "outcome": "blocked",
           "status": 500,
           "body": "Unsupported imports option",
-          "durationMs": 70
+          "durationMs": 58
         },
         {
           "name": "standard-invoice",
@@ -135,7 +135,7 @@
           "outcome": "passed",
           "status": 200,
           "body": "Total: $42",
-          "durationMs": 40
+          "durationMs": 44
         },
         {
           "name": "custom-currency",
@@ -143,7 +143,7 @@
           "outcome": "passed",
           "status": 200,
           "body": "Total: €42",
-          "durationMs": 37
+          "durationMs": 47
         },
         {
           "name": "server-owned-template",
@@ -151,7 +151,7 @@
           "outcome": "passed",
           "status": 400,
           "body": "Client templates are not supported",
-          "durationMs": 41
+          "durationMs": 61
         }
       ],
       "cleanup": true
